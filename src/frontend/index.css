@@ -1,0 +1,227 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+@layer base {
+  :root {
+    --radius: 0.375rem;
+
+    /* Chess-themed dark palette — always dark */
+    --background: 0.14 0.018 255;
+    --foreground: 0.94 0.012 260;
+
+    --card: 0.18 0.022 255;
+    --card-foreground: 0.94 0.012 260;
+
+    --popover: 0.2 0.025 255;
+    --popover-foreground: 0.94 0.012 260;
+
+    /* Gold primary */
+    --primary: 0.78 0.17 78;
+    --primary-foreground: 0.12 0.02 255;
+
+    --secondary: 0.22 0.028 255;
+    --secondary-foreground: 0.85 0.015 260;
+
+    --muted: 0.22 0.025 255;
+    --muted-foreground: 0.58 0.04 258;
+
+    /* Gold accent */
+    --accent: 0.72 0.16 78;
+    --accent-foreground: 0.12 0.02 255;
+
+    --destructive: 0.58 0.22 27;
+    --destructive-foreground: 0.98 0 0;
+
+    --border: 0.28 0.03 258;
+    --input: 0.22 0.025 255;
+    --ring: 0.72 0.16 78;
+
+    /* Player status tokens */
+    --player-active: 0.78 0.18 145;
+    --player-one-loss: 0.72 0.19 44;
+    --player-eliminated: 0.58 0.22 27;
+
+    /* Status badge tokens */
+    --status-registration: 0.62 0.17 250;
+    --status-active: 0.72 0.18 145;
+    --status-completed: 0.52 0.03 258;
+
+    --chart-1: 0.78 0.17 78;
+    --chart-2: 0.72 0.18 145;
+    --chart-3: 0.72 0.19 44;
+    --chart-4: 0.58 0.22 27;
+    --chart-5: 0.62 0.17 250;
+
+    --sidebar: 0.16 0.02 255;
+    --sidebar-foreground: 0.94 0.012 260;
+    --sidebar-primary: 0.78 0.17 78;
+    --sidebar-primary-foreground: 0.12 0.02 255;
+    --sidebar-accent: 0.22 0.028 255;
+    --sidebar-accent-foreground: 0.85 0.015 260;
+    --sidebar-border: 0.28 0.03 258;
+    --sidebar-ring: 0.72 0.16 78;
+  }
+
+  /* Force dark theme — always dark for this chess app */
+  .dark, :root {
+    --background: 0.14 0.018 255;
+    --foreground: 0.94 0.012 260;
+    --card: 0.18 0.022 255;
+    --card-foreground: 0.94 0.012 260;
+    --popover: 0.22 0.025 255;
+    --popover-foreground: 0.94 0.012 260;
+    --primary: 0.78 0.17 78;
+    --primary-foreground: 0.12 0.02 255;
+    --secondary: 0.22 0.028 255;
+    --secondary-foreground: 0.85 0.015 260;
+    --muted: 0.22 0.025 255;
+    --muted-foreground: 0.58 0.04 258;
+    --accent: 0.72 0.16 78;
+    --accent-foreground: 0.12 0.02 255;
+    --destructive: 0.58 0.22 27;
+    --destructive-foreground: 0.98 0 0;
+    --border: 0.28 0.03 258;
+    --input: 0.22 0.025 255;
+    --ring: 0.72 0.16 78;
+    --chart-1: 0.78 0.17 78;
+    --chart-2: 0.72 0.18 145;
+    --chart-3: 0.72 0.19 44;
+    --chart-4: 0.58 0.22 27;
+    --chart-5: 0.62 0.17 250;
+    --sidebar: 0.16 0.02 255;
+    --sidebar-foreground: 0.94 0.012 260;
+    --sidebar-primary: 0.78 0.17 78;
+    --sidebar-primary-foreground: 0.12 0.02 255;
+    --sidebar-accent: 0.22 0.028 255;
+    --sidebar-accent-foreground: 0.85 0.015 260;
+    --sidebar-border: 0.28 0.03 258;
+    --sidebar-ring: 0.72 0.16 78;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Space Grotesk', sans-serif;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.22 0.06 255 / 0.3), transparent),
+      radial-gradient(ellipse 40% 30% at 80% 80%, oklch(0.18 0.04 78 / 0.12), transparent);
+  }
+
+  code, pre, .font-mono {
+    font-family: 'Space Mono', monospace;
+  }
+}
+
+@layer utilities {
+  /* Chess board background pattern */
+  .chess-bg {
+    background-image:
+      linear-gradient(45deg, oklch(0.2 0.025 255 / 0.4) 25%, transparent 25%),
+      linear-gradient(-45deg, oklch(0.2 0.025 255 / 0.4) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, oklch(0.2 0.025 255 / 0.4) 75%),
+      linear-gradient(-45deg, transparent 75%, oklch(0.2 0.025 255 / 0.4) 75%);
+    background-size: 40px 40px;
+    background-position: 0 0, 0 20px, 20px -20px, -20px 0px;
+  }
+
+  .chess-bg-subtle {
+    background-image:
+      linear-gradient(45deg, oklch(0.2 0.025 255 / 0.15) 25%, transparent 25%),
+      linear-gradient(-45deg, oklch(0.2 0.025 255 / 0.15) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, oklch(0.2 0.025 255 / 0.15) 75%),
+      linear-gradient(-45deg, transparent 75%, oklch(0.2 0.025 255 / 0.15) 75%);
+    background-size: 32px 32px;
+    background-position: 0 0, 0 16px, 16px -16px, -16px 0px;
+  }
+
+  /* Gold text gradient */
+  .gold-text {
+    background: linear-gradient(135deg, oklch(0.86 0.18 82), oklch(0.72 0.18 60));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glowing gold border */
+  .gold-glow {
+    box-shadow: 0 0 20px oklch(0.78 0.17 78 / 0.25), 0 0 60px oklch(0.78 0.17 78 / 0.1);
+  }
+
+  /* Player status colors */
+  .player-active {
+    color: oklch(var(--player-active));
+  }
+  .player-one-loss {
+    color: oklch(var(--player-one-loss));
+  }
+  .player-eliminated {
+    color: oklch(var(--player-eliminated));
+    opacity: 0.5;
+    text-decoration: line-through;
+  }
+
+  /* Animated float for chess pieces */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+  .piece-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in-up {
+    animation: fadeInUp 0.4s ease-out forwards;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+
+  .gold-shimmer {
+    background: linear-gradient(90deg, oklch(0.78 0.17 78), oklch(0.92 0.2 90), oklch(0.78 0.17 78));
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s linear infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: oklch(0.78 0.17 78 / 0.5); }
+    50% { border-color: oklch(0.78 0.17 78 / 1); }
+  }
+  .pulse-border {
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  /* Scanline overlay effect */
+  .scanlines::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      oklch(0 0 0 / 0.03) 2px,
+      oklch(0 0 0 / 0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+}
