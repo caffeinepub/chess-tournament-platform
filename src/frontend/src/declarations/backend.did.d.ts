@@ -45,6 +45,7 @@ export interface Round {
 export interface Tournament {
   'id' : string,
   'status' : TournamentStatus,
+  'eliminationCount' : bigint,
   'name' : string,
   'createdAt' : bigint,
   'winner' : [] | [string],
@@ -55,7 +56,8 @@ export type TournamentStatus = { 'active' : null } |
 export interface _SERVICE {
   'addPlayer' : ActorMethod<[string, string], Player>,
   'completeTournament' : ActorMethod<[string, string], Tournament>,
-  'createTournament' : ActorMethod<[string], Tournament>,
+  'createNextRound' : ActorMethod<[string], Round>,
+  'createTournament' : ActorMethod<[string, [] | [bigint]], Tournament>,
   'deleteTournament' : ActorMethod<[string], undefined>,
   'getAllTournaments' : ActorMethod<[], Array<Tournament>>,
   'getCurrentRound' : ActorMethod<[string], [] | [Round]>,
@@ -63,6 +65,7 @@ export interface _SERVICE {
   'getRoundsByTournament' : ActorMethod<[string], Array<Round>>,
   'getTournament' : ActorMethod<[string], Tournament>,
   'recordMatchResult' : ActorMethod<[string, string, string], Match>,
+  'reshuffleCurrentRound' : ActorMethod<[string], Round>,
   'startTournament' : ActorMethod<[string], Tournament>,
   'updateTournamentStatus' : ActorMethod<
     [string, TournamentStatus],

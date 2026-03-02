@@ -1,14 +1,21 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useActor } from "./useActor";
-import { type Tournament, type Player, type Round, type Match, TournamentStatus } from "../backend.d";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  Match,
+  Player,
+  Round,
+  Tournament,
+  TournamentStatus,
+} from "../backend.d";
 import { createActorWithConfig } from "../config";
+import { useActor } from "./useActor";
 
 // ─── Query Keys ────────────────────────────────────────────────────────────────
 export const queryKeys = {
   tournaments: ["tournaments"] as const,
   tournament: (id: string) => ["tournament", id] as const,
   players: (tournamentId: string) => ["players", tournamentId] as const,
-  currentRound: (tournamentId: string) => ["currentRound", tournamentId] as const,
+  currentRound: (tournamentId: string) =>
+    ["currentRound", tournamentId] as const,
   rounds: (tournamentId: string) => ["rounds", tournamentId] as const,
 };
 
@@ -140,16 +147,31 @@ export function useGetRoundsPublic(tournamentId: string) {
   });
 }
 
+export function useGetAllTournamentsPublic() {
+  return useQuery<Tournament[]>({
+    queryKey: ["public", "tournaments"],
+    queryFn: async () => {
+      const actor = await createActorWithConfig();
+      return actor.getAllTournaments();
+    },
+    refetchInterval: 10_000,
+  });
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export function useCreateTournament() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
-  return useMutation<Tournament, Error, string>({
-    mutationFn: async (name: string) => {
+  return useMutation<
+    Tournament,
+    Error,
+    { name: string; eliminationCount: bigint }
+  >({
+    mutationFn: async ({ name, eliminationCount }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.createTournament(name);
+      return actor.createTournament(name, eliminationCount);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tournaments });
@@ -167,8 +189,12 @@ export function useStartTournament() {
       return actor.startTournament(tournamentId);
     },
     onSuccess: (_data, tournamentId) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournament(tournamentId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.currentRound(tournamentId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.tournament(tournamentId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.currentRound(tournamentId),
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.tournaments });
     },
   });
@@ -193,7 +219,11 @@ export function useRecordMatchResult() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
-  return useMutation<Match, Error, { matchId: string; winnerId: string; loserId: string; tournamentId: string }>({
+  return useMutation<
+    Match,
+    Error,
+    { matchId: string; winnerId: string; loserId: string; tournamentId: string }
+  >({
     mutationFn: async ({ matchId, winnerId, loserId }) => {
       if (!actor) throw new Error("Not connected");
       return actor.recordMatchResult(matchId, winnerId, loserId);
@@ -201,10 +231,18 @@ export function useRecordMatchResult() {
     onSuccess: async (_data, { tournamentId }) => {
       // Refresh all tournament data
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.tournament(tournamentId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.currentRound(tournamentId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.players(tournamentId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.rounds(tournamentId) }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.tournament(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.currentRound(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.players(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.rounds(tournamentId),
+        }),
       ]);
     },
   });
@@ -219,8 +257,31 @@ export function useAddPlayer() {
       return actor.addPlayer(tournamentId, name);
     },
     onSuccess: (_data, { tournamentId }) => {
-      queryClient.invalidateQueries({ queryKey: ["public", "players", tournamentId] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.players(tournamentId) });
+      queryClient.invalidateQueries({
+        queryKey: ["public", "players", tournamentId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.players(tournamentId),
+      });
+    },
+  });
+}
+
+export function useCreateNextRound() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Round, Error, string>({
+    mutationFn: async (tournamentId: string) => {
+      const actor = await createActorWithConfig();
+      return actor.createNextRound(tournamentId);
+    },
+    onSuccess: (_data, tournamentId) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.currentRound(tournamentId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.rounds(tournamentId),
+      });
     },
   });
 }
@@ -229,13 +290,19 @@ export function useCompleteTournament() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
-  return useMutation<Tournament, Error, { tournamentId: string; winnerId: string }>({
+  return useMutation<
+    Tournament,
+    Error,
+    { tournamentId: string; winnerId: string }
+  >({
     mutationFn: async ({ tournamentId, winnerId }) => {
       if (!actor) throw new Error("Not connected");
       return actor.completeTournament(tournamentId, winnerId);
     },
     onSuccess: (_data, { tournamentId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournament(tournamentId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.tournament(tournamentId),
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.tournaments });
     },
   });
@@ -245,14 +312,38 @@ export function useUpdateTournamentStatus() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
-  return useMutation<Tournament, Error, { tournamentId: string; status: TournamentStatus }>({
+  return useMutation<
+    Tournament,
+    Error,
+    { tournamentId: string; status: TournamentStatus }
+  >({
     mutationFn: async ({ tournamentId, status }) => {
       if (!actor) throw new Error("Not connected");
       return actor.updateTournamentStatus(tournamentId, status);
     },
     onSuccess: (_data, { tournamentId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.tournament(tournamentId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.tournament(tournamentId),
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.tournaments });
+    },
+  });
+}
+
+export function useReshuffleCurrentRound() {
+  const queryClient = useQueryClient();
+  return useMutation<Round, Error, string>({
+    mutationFn: async (tournamentId: string) => {
+      const actor = await createActorWithConfig();
+      return actor.reshuffleCurrentRound(tournamentId);
+    },
+    onSuccess: (_data, tournamentId) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.currentRound(tournamentId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.rounds(tournamentId),
+      });
     },
   });
 }

@@ -1,43 +1,34 @@
 # Chess Tournament Platform
 
 ## Current State
-New project with empty backend and a bare-bones frontend scaffold (React + TypeScript + Tailwind + Vite). No existing application logic.
+- Full double-elimination chess tournament app with Admin panel at `/admin`, registration at `/register/:id`, and viewer at `/view/:id`
+- Elimination threshold is hardcoded to 2 losses in the backend (`recordMatchResult`)
+- `createTournament` accepts only a `name` parameter
+- Admin panel shows Winner History, Create Tournament form (name only), and tournament list with expand/collapse panels
+- Each tournament panel shows current round with dice reshuffle, standings table, and copy links
+- Manual reshuffle toggle already present in the UI
 
 ## Requested Changes (Diff)
 
 ### Add
-- Full double-elimination chess tournament platform with three public views
-- Persistent tournament data storage via backend canister
-- Admin panel for managing tournaments and recording match results
-- Public player registration page per tournament
-- Public read-only tournament viewer with live status
-- Double-elimination logic (2 losses = eliminated)
-- Automatic round pairing with Fisher-Yates shuffle
-- Bye handling for odd player counts
-- Color-coded player status (white=active, orange=1 loss, red=eliminated)
-- Champion detection and winner announcement
-- Copy-to-clipboard links for registration and viewer URLs
-- Chess-themed dark UI with gold accents and chess unicode symbols
+- `eliminationCount` field on the `Tournament` type (how many losses before a player is eliminated)
+- `createTournament(name, eliminationCount)` — new parameter, default 2 if not specified
+- Admin Create Tournament form: numeric input for "Losses to Eliminate" (min 1, max 5, default 2) alongside the name field
+- Admin panel: display the elimination count as a badge/label on each tournament item and inside the tournament panel
 
 ### Modify
-- Frontend routing: add React Router v6 with routes for `/`, `/admin`, `/register/:id`, `/view/:id`
-- index.css: dark chess theme design tokens
+- Backend `recordMatchResult`: use `tournament.eliminationCount` instead of hardcoded `2`
+- Frontend `AdminPage`: expand Create Tournament form to include the elimination count input
+- `TournamentPanel` registration state: show elimination count prominently so admins know the rule
 
 ### Remove
-- Nothing (new project)
+- Nothing removed
 
 ## Implementation Plan
-1. Generate Motoko backend with Tournament, Player, Round, Match data types and CRUD operations
-2. Build frontend with React Router, four main page components, shared tournament store (localStorage bridge to backend), pairing algorithm, elimination logic
-3. Admin page: tournament list, tournament management (registration/active/completed states)
-4. Register page: player name input, closed-state handling
-5. View page: tabbed rounds display, player standings, winner banner
-6. Shared components: player badge with color coding, match card, copy-link button, toast notifications
-
-## UX Notes
-- Dark background #0f172a, cards #1e293b, gold accent #f59e0b
-- Chess unicode symbols ♟ ♔ ♛ ♚ used decoratively
-- Mobile-responsive layout
-- Smooth state transitions with loading indicators
-- Toast notifications on copy/submit/result actions
-- Registration link and viewer link both copyable from admin panel
+1. Update `Tournament` type in Motoko to add `eliminationCount: Nat` field
+2. Update `createTournament` to accept `eliminationCount: Nat` parameter (default 2)
+3. Update `recordMatchResult` to use `tournament.eliminationCount` when checking for elimination
+4. Regenerate backend bindings (`backend.d.ts`)
+5. Update Admin Create Tournament form to include a numeric "Losses to Eliminate" input (1–5)
+6. Show elimination count badge on TournamentItem list and inside TournamentPanel header
+7. Show elimination rule in the registration panel ("X losses = eliminated")

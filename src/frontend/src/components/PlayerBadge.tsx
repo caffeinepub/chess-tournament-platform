@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { PlayerStatus, type Player } from "../backend.d";
+import { type Player, PlayerStatus } from "../backend.d";
 
 interface PlayerBadgeProps {
   player: Player;
@@ -23,12 +23,22 @@ export function getPlayerStatusLabel(player: Player): string {
   return "Active";
 }
 
-export default function PlayerBadge({ player, showLosses = true, className }: PlayerBadgeProps) {
+export default function PlayerBadge({
+  player,
+  showLosses = true,
+  className,
+}: PlayerBadgeProps) {
   const statusClasses = getPlayerStatusClasses(player);
   const losses = Number(player.losses);
 
   return (
-    <span className={cn("inline-flex items-center gap-1.5 font-medium", statusClasses, className)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 font-medium",
+        statusClasses,
+        className,
+      )}
+    >
       <span>{player.name}</span>
       {showLosses && losses > 0 && (
         <span
@@ -36,7 +46,7 @@ export default function PlayerBadge({ player, showLosses = true, className }: Pl
             "text-xs px-1.5 py-0.5 rounded font-mono font-bold",
             player.eliminated
               ? "bg-player-eliminated/20 text-player-eliminated"
-              : "bg-player-one-loss/20 text-player-one-loss"
+              : "bg-player-one-loss/20 text-player-one-loss",
           )}
         >
           {losses}L

@@ -100,6 +100,7 @@ export interface Player {
 export interface Tournament {
     id: string;
     status: TournamentStatus;
+    eliminationCount: bigint;
     name: string;
     createdAt: bigint;
     winner?: string;
@@ -140,7 +141,8 @@ export enum TournamentStatus {
 export interface backendInterface {
     addPlayer(tournamentId: string, name: string): Promise<Player>;
     completeTournament(tournamentId: string, winner: string): Promise<Tournament>;
-    createTournament(name: string): Promise<Tournament>;
+    createNextRound(tournamentId: string): Promise<Round>;
+    createTournament(name: string, eliminationCount: bigint | null): Promise<Tournament>;
     deleteTournament(tournamentId: string): Promise<void>;
     getAllTournaments(): Promise<Array<Tournament>>;
     getCurrentRound(tournamentId: string): Promise<Round | null>;
@@ -148,6 +150,7 @@ export interface backendInterface {
     getRoundsByTournament(tournamentId: string): Promise<Array<Round>>;
     getTournament(id: string): Promise<Tournament>;
     recordMatchResult(matchId: string, winnerId: string, loserId: string): Promise<Match>;
+    reshuffleCurrentRound(tournamentId: string): Promise<Round>;
     startTournament(tournamentId: string): Promise<Tournament>;
     updateTournamentStatus(tournamentId: string, status: TournamentStatus): Promise<Tournament>;
 }
@@ -182,17 +185,31 @@ export class Backend implements backendInterface {
             return from_candid_Tournament_n5(this._uploadFile, this._downloadFile, result);
         }
     }
-    async createTournament(arg0: string): Promise<Tournament> {
+    async createNextRound(arg0: string): Promise<Round> {
         if (this.processError) {
             try {
-                const result = await this.actor.createTournament(arg0);
+                const result = await this.actor.createNextRound(arg0);
+                return from_candid_Round_n10(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.createNextRound(arg0);
+            return from_candid_Round_n10(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async createTournament(arg0: string, arg1: bigint | null): Promise<Tournament> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.createTournament(arg0, to_candid_opt_n17(this._uploadFile, this._downloadFile, arg1));
                 return from_candid_Tournament_n5(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.createTournament(arg0);
+            const result = await this.actor.createTournament(arg0, to_candid_opt_n17(this._uploadFile, this._downloadFile, arg1));
             return from_candid_Tournament_n5(this._uploadFile, this._downloadFile, result);
         }
     }
@@ -214,56 +231,56 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getAllTournaments();
-                return from_candid_vec_n10(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n18(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getAllTournaments();
-            return from_candid_vec_n10(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n18(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCurrentRound(arg0: string): Promise<Round | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCurrentRound(arg0);
-                return from_candid_opt_n11(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n19(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCurrentRound(arg0);
-            return from_candid_opt_n11(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n19(this._uploadFile, this._downloadFile, result);
         }
     }
     async getPlayersByTournament(arg0: string): Promise<Array<Player>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getPlayersByTournament(arg0);
-                return from_candid_vec_n19(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getPlayersByTournament(arg0);
-            return from_candid_vec_n19(this._uploadFile, this._downloadFile, result);
-        }
-    }
-    async getRoundsByTournament(arg0: string): Promise<Array<Round>> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getRoundsByTournament(arg0);
                 return from_candid_vec_n20(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getRoundsByTournament(arg0);
+            const result = await this.actor.getPlayersByTournament(arg0);
             return from_candid_vec_n20(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getRoundsByTournament(arg0: string): Promise<Array<Round>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getRoundsByTournament(arg0);
+                return from_candid_vec_n21(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getRoundsByTournament(arg0);
+            return from_candid_vec_n21(this._uploadFile, this._downloadFile, result);
         }
     }
     async getTournament(arg0: string): Promise<Tournament> {
@@ -284,14 +301,28 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.recordMatchResult(arg0, arg1, arg2);
-                return from_candid_Match_n15(this._uploadFile, this._downloadFile, result);
+                return from_candid_Match_n13(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.recordMatchResult(arg0, arg1, arg2);
-            return from_candid_Match_n15(this._uploadFile, this._downloadFile, result);
+            return from_candid_Match_n13(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async reshuffleCurrentRound(arg0: string): Promise<Round> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.reshuffleCurrentRound(arg0);
+                return from_candid_Round_n10(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.reshuffleCurrentRound(arg0);
+            return from_candid_Round_n10(this._uploadFile, this._downloadFile, result);
         }
     }
     async startTournament(arg0: string): Promise<Tournament> {
@@ -311,23 +342,23 @@ export class Backend implements backendInterface {
     async updateTournamentStatus(arg0: string, arg1: TournamentStatus): Promise<Tournament> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateTournamentStatus(arg0, to_candid_TournamentStatus_n21(this._uploadFile, this._downloadFile, arg1));
+                const result = await this.actor.updateTournamentStatus(arg0, to_candid_TournamentStatus_n22(this._uploadFile, this._downloadFile, arg1));
                 return from_candid_Tournament_n5(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateTournamentStatus(arg0, to_candid_TournamentStatus_n21(this._uploadFile, this._downloadFile, arg1));
+            const result = await this.actor.updateTournamentStatus(arg0, to_candid_TournamentStatus_n22(this._uploadFile, this._downloadFile, arg1));
             return from_candid_Tournament_n5(this._uploadFile, this._downloadFile, result);
         }
     }
 }
-function from_candid_MatchResult_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _MatchResult): MatchResult {
-    return from_candid_variant_n18(_uploadFile, _downloadFile, value);
+function from_candid_MatchResult_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _MatchResult): MatchResult {
+    return from_candid_variant_n16(_uploadFile, _downloadFile, value);
 }
-function from_candid_Match_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Match): Match {
-    return from_candid_record_n16(_uploadFile, _downloadFile, value);
+function from_candid_Match_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Match): Match {
+    return from_candid_record_n14(_uploadFile, _downloadFile, value);
 }
 function from_candid_PlayerStatus_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _PlayerStatus): PlayerStatus {
     return from_candid_variant_n4(_uploadFile, _downloadFile, value);
@@ -335,8 +366,8 @@ function from_candid_PlayerStatus_n3(_uploadFile: (file: ExternalBlob) => Promis
 function from_candid_Player_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Player): Player {
     return from_candid_record_n2(_uploadFile, _downloadFile, value);
 }
-function from_candid_Round_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Round): Round {
-    return from_candid_record_n13(_uploadFile, _downloadFile, value);
+function from_candid_Round_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Round): Round {
+    return from_candid_record_n11(_uploadFile, _downloadFile, value);
 }
 function from_candid_TournamentStatus_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _TournamentStatus): TournamentStatus {
     return from_candid_variant_n8(_uploadFile, _downloadFile, value);
@@ -344,13 +375,13 @@ function from_candid_TournamentStatus_n7(_uploadFile: (file: ExternalBlob) => Pr
 function from_candid_Tournament_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Tournament): Tournament {
     return from_candid_record_n6(_uploadFile, _downloadFile, value);
 }
-function from_candid_opt_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Round]): Round | null {
-    return value.length === 0 ? null : from_candid_Round_n12(_uploadFile, _downloadFile, value[0]);
+function from_candid_opt_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Round]): Round | null {
+    return value.length === 0 ? null : from_candid_Round_n10(_uploadFile, _downloadFile, value[0]);
 }
 function from_candid_opt_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_record_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     completed: boolean;
     matches: Array<_Match>;
     roundNumber: bigint;
@@ -363,12 +394,12 @@ function from_candid_record_n13(_uploadFile: (file: ExternalBlob) => Promise<Uin
 } {
     return {
         completed: value.completed,
-        matches: from_candid_vec_n14(_uploadFile, _downloadFile, value.matches),
+        matches: from_candid_vec_n12(_uploadFile, _downloadFile, value.matches),
         roundNumber: value.roundNumber,
         tournamentId: value.tournamentId
     };
 }
-function from_candid_record_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: string;
     player1Id: string;
     player2Id: string;
@@ -397,7 +428,7 @@ function from_candid_record_n16(_uploadFile: (file: ExternalBlob) => Promise<Uin
         id: value.id,
         player1Id: value.player1Id,
         player2Id: value.player2Id,
-        result: from_candid_MatchResult_n17(_uploadFile, _downloadFile, value.result),
+        result: from_candid_MatchResult_n15(_uploadFile, _downloadFile, value.result),
         winnerId: record_opt_to_undefined(from_candid_opt_n9(_uploadFile, _downloadFile, value.winnerId)),
         loserId: record_opt_to_undefined(from_candid_opt_n9(_uploadFile, _downloadFile, value.loserId)),
         player2Name: value.player2Name,
@@ -434,12 +465,14 @@ function from_candid_record_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint
 function from_candid_record_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: string;
     status: _TournamentStatus;
+    eliminationCount: bigint;
     name: string;
     createdAt: bigint;
     winner: [] | [string];
 }): {
     id: string;
     status: TournamentStatus;
+    eliminationCount: bigint;
     name: string;
     createdAt: bigint;
     winner?: string;
@@ -447,12 +480,13 @@ function from_candid_record_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint
     return {
         id: value.id,
         status: from_candid_TournamentStatus_n7(_uploadFile, _downloadFile, value.status),
+        eliminationCount: value.eliminationCount,
         name: value.name,
         createdAt: value.createdAt,
         winner: record_opt_to_undefined(from_candid_opt_n9(_uploadFile, _downloadFile, value.winner))
     };
 }
-function from_candid_variant_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     pending: null;
 } | {
     completed: null;
@@ -477,22 +511,25 @@ function from_candid_variant_n8(_uploadFile: (file: ExternalBlob) => Promise<Uin
 }): TournamentStatus {
     return "active" in value ? TournamentStatus.active : "registration" in value ? TournamentStatus.registration : "completed" in value ? TournamentStatus.completed : value;
 }
-function from_candid_vec_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Tournament>): Array<Tournament> {
+function from_candid_vec_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Match>): Array<Match> {
+    return value.map((x)=>from_candid_Match_n13(_uploadFile, _downloadFile, x));
+}
+function from_candid_vec_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Tournament>): Array<Tournament> {
     return value.map((x)=>from_candid_Tournament_n5(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Match>): Array<Match> {
-    return value.map((x)=>from_candid_Match_n15(_uploadFile, _downloadFile, x));
-}
-function from_candid_vec_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Player>): Array<Player> {
+function from_candid_vec_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Player>): Array<Player> {
     return value.map((x)=>from_candid_Player_n1(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Round>): Array<Round> {
-    return value.map((x)=>from_candid_Round_n12(_uploadFile, _downloadFile, x));
+function from_candid_vec_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Round>): Array<Round> {
+    return value.map((x)=>from_candid_Round_n10(_uploadFile, _downloadFile, x));
 }
-function to_candid_TournamentStatus_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: TournamentStatus): _TournamentStatus {
-    return to_candid_variant_n22(_uploadFile, _downloadFile, value);
+function to_candid_TournamentStatus_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: TournamentStatus): _TournamentStatus {
+    return to_candid_variant_n23(_uploadFile, _downloadFile, value);
 }
-function to_candid_variant_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: TournamentStatus): {
+function to_candid_opt_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: bigint | null): [] | [bigint] {
+    return value === null ? candid_none() : candid_some(value);
+}
+function to_candid_variant_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: TournamentStatus): {
     active: null;
 } | {
     registration: null;

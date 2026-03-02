@@ -1,13 +1,16 @@
-import Array "mo:core/Array";
 import Map "mo:core/Map";
-import Time "mo:core/Time";
-import Runtime "mo:core/Runtime";
-import Order "mo:core/Order";
 import Iter "mo:core/Iter";
 import Text "mo:core/Text";
+import Order "mo:core/Order";
 import Nat "mo:core/Nat";
+import Array "mo:core/Array";
+import Runtime "mo:core/Runtime";
+import VarArray "mo:core/VarArray";
+import Time "mo:core/Time";
 import Int "mo:core/Int";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   type TournamentStatus = {
     #registration;
@@ -32,6 +35,7 @@ actor {
     status : TournamentStatus;
     createdAt : Int;
     winner : ?Text;
+    eliminationCount : Nat;
   };
 
   type Player = {
@@ -79,11 +83,6 @@ actor {
     };
   };
 
-  let tournaments = Map.empty<Text, Tournament>();
-  let players = Map.empty<Text, Player>();
-  let rounds = Map.empty<Text, Round>();
-  let matches = Map.empty<Text, Match>();
-
   func getTournamentOrTrap(tournamentId : Text) : Tournament {
     switch (tournaments.get(tournamentId)) {
       case (null) { Runtime.trap("Tournament does not exist") };
@@ -112,12 +111,91 @@ actor {
     };
   };
 
-  func getPlayerName(playerId : Text) : Text {
-    let player = getPlayerOrTrap(playerId);
-    player.name;
+  func shufflePlayers(players : [Player]) : [Player] {
+    if (players.size() <= 1) {
+      return players;
+    };
+
+    var seed = (Time.now().toNat() * 1664525 + 1013904223) % 4294967296;
+
+    let buf = players.toVarArray<Player>();
+
+    var i = players.size() - 1;
+    while (i > 0) {
+      seed := (seed * 1664525 + 1013904223) % 4294967296;
+      let randomIndex = Int.abs(seed) % (i + 1);
+      let temp = buf[i];
+      buf[i] := buf[randomIndex];
+      buf[randomIndex] := temp;
+      i -= 1;
+    };
+
+    buf.toArray();
   };
 
-  public shared ({ caller }) func createTournament(name : Text) : async Tournament {
+  func buildRound(tournamentId : Text, roundNumber : Nat, shuffledPlayers : [Player]) : Round {
+    var matchList : [Match] = [];
+    var i = 0;
+    while (i + 1 < shuffledPlayers.size()) {
+      let player1 = shuffledPlayers[i];
+      let player2 = shuffledPlayers[i + 1];
+
+      let matchId = "m-" # tournamentId # "-" # roundNumber.toText() # "-" # (i / 2).toText() # "-" # Time.now().toText();
+      let match : Match = {
+        id = matchId;
+        tournamentId;
+        roundNumber;
+        player1Id = player1.id;
+        player2Id = player2.id;
+        player1Name = player1.name;
+        player2Name = player2.name;
+        winnerId = null;
+        loserId = null;
+        result = #pending;
+        byePlayerId = null;
+      };
+      matchList := matchList.concat([match]);
+      matches.add(matchId, match);
+
+      i += 2;
+    };
+
+    if (shuffledPlayers.size() % 2 == 1) {
+      let byePlayer = shuffledPlayers[shuffledPlayers.size() - 1];
+
+      let byeMatchId = "m-bye-" # tournamentId # "-" # roundNumber.toText() # "-" # Time.now().toText();
+      let byeMatch : Match = {
+        id = byeMatchId;
+        tournamentId;
+        roundNumber;
+        player1Id = byePlayer.id;
+        player2Id = byePlayer.id;
+        player1Name = byePlayer.name;
+        player2Name = byePlayer.name;
+        winnerId = ?byePlayer.id;
+        loserId = null;
+        result = #completed;
+        byePlayerId = ?byePlayer.id;
+      };
+
+      matchList := matchList.concat([byeMatch]);
+      matches.add(byeMatchId, byeMatch);
+    };
+
+    let roundId = "r-" # tournamentId # "-" # roundNumber.toText() # "-" # Time.now().toText();
+    let round : Round = {
+      roundNumber;
+      tournamentId;
+      matches = matchList;
+      completed = false;
+    };
+
+    rounds.add(roundId, round);
+
+    round;
+  };
+
+  public shared ({ caller }) func createTournament(name : Text, eliminationCount : ?Nat) : async Tournament {
     let id = name.concat(Time.now().toText());
     let tournament : Tournament = {
       id;
@@ -125,6 +203,10 @@ actor {
       status = #registration;
       createdAt = Time.now();
       winner = null;
+      eliminationCount = switch (eliminationCount) {
+        case (null) { 2 };
+        case (?count) { count };
+      };
     };
     tournaments.add(id, tournament);
     tournament;
@@ -143,11 +225,13 @@ actor {
     if (tournament.status != #registration) {
       Runtime.trap("Tournament must be in registration phase ");
     };
+
     for ((_, player) in players.entries()) {
       if (player.name == name and player.tournamentId == tournamentId) {
         Runtime.trap("Player name must be unique in a tournament");
       };
     };
+
     let id = name.concat(Time.now().toText());
     let player : Player = {
       id;
@@ -172,21 +256,60 @@ actor {
     if (tournament.status != #registration) {
       Runtime.trap("Tournament must be in registration phase");
     };
+
     let tournamentPlayers = players.values().toArray().filter(
       func(p) { p.tournamentId == tournamentId }
     );
+
     if (tournamentPlayers.size() < 2) {
       Runtime.trap("At least 2 players required to start the tournament");
     };
+
     let updatedTournament : Tournament = {
       id = tournament.id;
       name = tournament.name;
       status = #active;
       createdAt = tournament.createdAt;
       winner = tournament.winner;
+      eliminationCount = tournament.eliminationCount;
     };
     tournaments.add(tournamentId, updatedTournament);
+
+    let shuffledPlayers = shufflePlayers(
+      tournamentPlayers.filter(
+        func(p) { not p.eliminated }
+      )
+    );
+    ignore buildRound(tournamentId, 1, shuffledPlayers);
     updatedTournament;
+  };
+
+  public shared ({ caller }) func createNextRound(tournamentId : Text) : async Round {
+    let tournamentRounds = rounds.values().toArray().filter(
+      func(r) { r.tournamentId == tournamentId }
+    );
+
+    if (tournamentRounds.size() == 0) {
+      Runtime.trap("No rounds found for this tournament");
+    };
+
+    let roundNumbers = tournamentRounds.map(
+      func(r) { r.roundNumber }
+    );
+    let maxRound = roundNumbers.foldLeft(
+      0,
+      func(acc, num) { if (num > acc) { num } else { acc } },
+    );
+
+    let activePlayers = players.values().toArray().filter(
+      func(p) { p.tournamentId == tournamentId and not p.eliminated }
+    );
+    if (activePlayers.size() <= 1) {
+      Runtime.trap("Not enough players left to create a new round");
+    };
+
+    let shuffledPlayers = shufflePlayers(activePlayers);
+    buildRound(tournamentId, maxRound + 1, shuffledPlayers);
   };
 
   public query ({ caller }) func getRoundsByTournament(tournamentId : Text) : async [Round] {
@@ -196,11 +319,8 @@ actor {
   };
 
   public query ({ caller }) func getCurrentRound(tournamentId : Text) : async ?Round {
-    let tournamentRounds = rounds.values().toArray().filter(
-      func(r) { r.tournamentId == tournamentId }
-    );
-    let incompleteRounds = tournamentRounds.filter(
-      func(r) { not r.completed }
+    let incompleteRounds = rounds.values().toArray().filter(
+      func(r) { r.tournamentId == tournamentId and not r.completed }
     );
     if (incompleteRounds.size() > 0) {
       ?incompleteRounds[0];
@@ -211,9 +331,13 @@ actor {
 
   public shared ({ caller }) func recordMatchResult(matchId : Text, winnerId : Text, loserId : Text) : async Match {
     let match = getMatchOrTrap(matchId);
+    let tournament = getTournamentOrTrap(match.tournamentId);
+    let eliminationCount = tournament.eliminationCount;
+
     if (match.result != #pending) {
       Runtime.trap("Match result cannot be recorded twice");
     };
+
     let updatedMatch : Match = {
       id = match.id;
       tournamentId = match.tournamentId;
@@ -231,23 +355,64 @@ actor {
 
     for (id in [winnerId, loserId].values()) {
       let player = getPlayerOrTrap(id);
-      players.add(
-        id,
-        {
-          id = player.id;
-          tournamentId = player.tournamentId;
-          name = player.name;
-          losses = if (id == loserId) { player.losses + 1 } else { player.losses };
-          eliminated = if (id == loserId and player.losses + 1 == 2) {
-            true;
-          } else { player.eliminated };
-          status = if (id == loserId and player.losses + 1 == 2) {
-            #eliminated;
-          } else if (id == loserId) {
-            #oneLoss;
-          } else { player.status };
-        },
-      );
+      let updatedLosses = if (id == loserId) {
+        player.losses + 1;
+      } else { player.losses };
+
+      let isEliminated = if (id == loserId and updatedLosses >= eliminationCount) {
+        true;
+      } else { player.eliminated };
+
+      let updatedStatus = if (id == loserId) {
+        if (updatedLosses >= eliminationCount) {
+          #eliminated;
+        } else { #oneLoss };
+      } else { player.status };
+
+      let updatedPlayer : Player = {
+        id = player.id;
+        tournamentId = player.tournamentId;
+        name = player.name;
+        losses = updatedLosses;
+        eliminated = isEliminated;
+        status = updatedStatus;
+      };
+      players.add(id, updatedPlayer);
+    };
+
+    let allRoundMatches = matches.values().toArray().filter(
+      func(m) { m.tournamentId == match.tournamentId and m.roundNumber == match.roundNumber }
+    );
+
+    for ((roundId, round) in rounds.entries()) {
+      if (round.tournamentId == match.tournamentId and round.roundNumber == match.roundNumber) {
+        let updatedMatches = Array.tabulate(
+          round.matches.size(),
+          func(i) {
+            if (i < round.matches.size() and round.matches[i].id == matchId) {
+              updatedMatch;
+            } else if (i < round.matches.size()) {
+              return round.matches[i];
+            } else {
+              match;
+            };
+          },
+        );
+
+        let isRoundCompleted = updatedMatches.foldLeft(
+          true,
+          func(acc, m) { acc and (m.result == #completed or m.byePlayerId != null) },
+        );
+
+        let updatedRound = {
+          roundNumber = round.roundNumber;
+          tournamentId = round.tournamentId;
+          matches = updatedMatches;
+          completed = isRoundCompleted;
+        };
+
+        rounds.add(roundId, updatedRound);
+      };
     };
 
     updatedMatch;
@@ -261,6 +426,7 @@ actor {
       status = #completed;
       createdAt = tournament.createdAt;
       winner = ?winner;
+      eliminationCount = tournament.eliminationCount;
     };
     tournaments.add(tournamentId, updatedTournament);
     updatedTournament;
@@ -274,13 +440,62 @@ actor {
       status;
       createdAt = tournament.createdAt;
       winner = tournament.winner;
+      eliminationCount = tournament.eliminationCount;
     };
     tournaments.add(tournamentId, updatedTournament);
     updatedTournament;
   };
 
   public shared ({ caller }) func deleteTournament(tournamentId : Text) : async () {
-    if (not tournaments.containsKey(tournamentId)) { Runtime.trap("Tournament does not exist") };
+    if (not tournaments.containsKey(tournamentId)) {
+      Runtime.trap("Tournament does not exist");
+    };
     tournaments.remove(tournamentId);
   };
+
+  public shared ({ caller }) func reshuffleCurrentRound(tournamentId : Text) : async Round {
+    let tournament = switch (tournaments.get(tournamentId)) {
+      case (null) { Runtime.trap("Tournament does not exist") };
+      case (?t) { t };
+    };
+
+    if (tournament.status != #active) {
+      Runtime.trap("Tournament must be active to reshuffle rounds");
+    };
+
+    var currentRoundOpt : ?Round = null;
+    for ((_, round) in rounds.entries()) {
+      if (round.tournamentId == tournamentId and not round.completed) {
+        currentRoundOpt := ?round;
+        let hasCompletedMatches = round.matches.foldLeft(
+          false,
+          func(acc, match) {
+            acc or (match.result == #completed and match.byePlayerId == null)
+          },
+        );
+        if (hasCompletedMatches) {
+          Runtime.trap("Cannot reshuffle round with completed matches");
+        };
+        let activePlayers = players.values().toArray().filter(
+          func(p) { p.tournamentId == tournamentId and p.status != #eliminated }
+        );
+        let shuffledPlayers = shufflePlayers(activePlayers);
+        return buildRound(
+          tournamentId,
+          round.roundNumber,
+          shuffledPlayers,
+        );
+      };
+    };
+
+    switch (currentRoundOpt) {
+      case (null) { Runtime.trap("No incomplete rounds found for this tournament") };
+      case (?_) { Runtime.trap("Unexpected error") };
+    };
+  };
+
+  stable var tournaments : Map.Map<Text, Tournament> = Map.empty<Text, Tournament>();
+  stable var players : Map.Map<Text, Player> = Map.empty<Text, Player>();
+  stable var rounds : Map.Map<Text, Round> = Map.empty<Text, Round>();
+  stable var matches : Map.Map<Text, Match> = Map.empty<Text, Match>();
 };

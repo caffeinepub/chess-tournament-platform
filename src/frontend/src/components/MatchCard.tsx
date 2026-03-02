@@ -1,7 +1,7 @@
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-import { MatchResult, type Match, type Player } from "../backend.d";
+import { type Match, MatchResult, type Player } from "../backend.d";
 import PlayerBadge from "./PlayerBadge";
 
 interface MatchCardProps {
@@ -12,7 +12,13 @@ interface MatchCardProps {
   isAdmin?: boolean;
 }
 
-export default function MatchCard({ match, players, onWin, isLoading, isAdmin }: MatchCardProps) {
+export default function MatchCard({
+  match,
+  players,
+  onWin,
+  isLoading,
+  isAdmin,
+}: MatchCardProps) {
   const isBye = !!match.byePlayerId;
   const isCompleted = match.result === MatchResult.completed;
 
@@ -24,25 +30,36 @@ export default function MatchCard({ match, players, onWin, isLoading, isAdmin }:
 
   // Bye match
   if (isBye) {
-    const byePlayerName = match.byePlayerId === match.player1Id
-      ? player1Name
-      : player2Name;
+    const byePlayerName =
+      match.byePlayerId === match.player1Id ? player1Name : player2Name;
     const byePlayer = match.byePlayerId === match.player1Id ? player1 : player2;
 
     return (
-      <div className={cn(
-        "rounded-lg border border-border/50 bg-card/50 p-4",
-        "flex items-center gap-3 opacity-70"
-      )}>
+      <div
+        className={cn(
+          "rounded-lg border border-border/50 bg-card/50 p-4",
+          "flex items-center gap-3 opacity-70",
+        )}
+      >
         <span className="text-gold text-lg">♟</span>
         <div className="flex-1">
-          <span className="text-muted-foreground text-sm font-mono uppercase tracking-wider">BYE — </span>
+          <span className="text-muted-foreground text-sm font-mono uppercase tracking-wider">
+            BYE —{" "}
+          </span>
           {byePlayer ? (
-            <PlayerBadge player={byePlayer} showLosses={false} className="font-semibold" />
+            <PlayerBadge
+              player={byePlayer}
+              showLosses={false}
+              className="font-semibold"
+            />
           ) : (
-            <span className="font-semibold text-foreground">{byePlayerName}</span>
+            <span className="font-semibold text-foreground">
+              {byePlayerName}
+            </span>
           )}
-          <span className="text-muted-foreground text-sm ml-2">advances automatically</span>
+          <span className="text-muted-foreground text-sm ml-2">
+            advances automatically
+          </span>
         </div>
       </div>
     );
@@ -50,18 +67,31 @@ export default function MatchCard({ match, players, onWin, isLoading, isAdmin }:
 
   // Completed match
   if (isCompleted) {
-    const winnerName = match.winnerId === match.player1Id ? player1Name : player2Name;
+    const winnerName =
+      match.winnerId === match.player1Id ? player1Name : player2Name;
     return (
-      <div className={cn(
-        "rounded-lg border border-border/30 bg-card/30 p-4",
-        "flex items-center justify-between opacity-60"
-      )}>
+      <div
+        className={cn(
+          "rounded-lg border border-border/30 bg-card/30 p-4",
+          "flex items-center justify-between opacity-60",
+        )}
+      >
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span className={cn("font-medium", match.winnerId === match.player1Id ? "text-gold" : "line-through")}>
+          <span
+            className={cn(
+              "font-medium",
+              match.winnerId === match.player1Id ? "text-gold" : "line-through",
+            )}
+          >
             {player1Name}
           </span>
           <span className="text-xs font-mono text-muted-foreground/60">VS</span>
-          <span className={cn("font-medium", match.winnerId === match.player2Id ? "text-gold" : "line-through")}>
+          <span
+            className={cn(
+              "font-medium",
+              match.winnerId === match.player2Id ? "text-gold" : "line-through",
+            )}
+          >
             {player2Name}
           </span>
         </div>
@@ -76,23 +106,37 @@ export default function MatchCard({ match, players, onWin, isLoading, isAdmin }:
   // Active match (admin view with win buttons)
   if (isAdmin && onWin) {
     return (
-      <div className={cn(
-        "rounded-lg border border-border bg-card p-4",
-        "flex flex-col sm:flex-row items-start sm:items-center gap-3",
-        "transition-all hover:border-gold/30 hover:shadow-card-hover"
-      )}>
+      <div
+        className={cn(
+          "rounded-lg border border-border bg-card p-4",
+          "flex flex-col sm:flex-row items-start sm:items-center gap-3",
+          "transition-all hover:border-gold/30 hover:shadow-card-hover",
+        )}
+      >
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {player1 ? (
-              <PlayerBadge player={player1} className="font-semibold truncate" />
+              <PlayerBadge
+                player={player1}
+                className="font-semibold truncate"
+              />
             ) : (
-              <span className="font-semibold text-foreground truncate">{player1Name}</span>
+              <span className="font-semibold text-foreground truncate">
+                {player1Name}
+              </span>
             )}
-            <span className="text-xs font-mono font-bold text-muted-foreground px-2 shrink-0">VS</span>
+            <span className="text-xs font-mono font-bold text-muted-foreground px-2 shrink-0">
+              VS
+            </span>
             {player2 ? (
-              <PlayerBadge player={player2} className="font-semibold truncate" />
+              <PlayerBadge
+                player={player2}
+                className="font-semibold truncate"
+              />
             ) : (
-              <span className="font-semibold text-foreground truncate">{player2Name}</span>
+              <span className="font-semibold text-foreground truncate">
+                {player2Name}
+              </span>
             )}
           </div>
         </div>
@@ -138,7 +182,9 @@ export default function MatchCard({ match, players, onWin, isLoading, isAdmin }:
         ) : (
           <span className="font-semibold">{player1Name}</span>
         )}
-        <span className="text-xs font-mono font-bold text-muted-foreground px-2">VS</span>
+        <span className="text-xs font-mono font-bold text-muted-foreground px-2">
+          VS
+        </span>
         {player2 ? (
           <PlayerBadge player={player2} className="font-semibold" />
         ) : (

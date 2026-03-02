@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Check, Copy } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 interface CopyLinkProps {
@@ -28,7 +28,9 @@ export default function CopyLink({ url, label, className }: CopyLinkProps) {
   return (
     <div className={cn("space-y-1.5", className)}>
       {label && (
-        <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+          {label}
+        </p>
       )}
       <div className="flex gap-2">
         <Input
@@ -44,10 +46,14 @@ export default function CopyLink({ url, label, className }: CopyLinkProps) {
             "border-border shrink-0 transition-all",
             copied
               ? "border-player-active text-player-active bg-player-active/10"
-              : "hover:border-gold/50 hover:text-gold"
+              : "hover:border-gold/50 hover:text-gold",
           )}
         >
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copied ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
         </Button>
       </div>
     </div>

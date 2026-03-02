@@ -1,5 +1,11 @@
-import { createRouter, createRootRoute, createRoute, RouterProvider, redirect } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
+import {
+  RouterProvider,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  redirect,
+} from "@tanstack/react-router";
 import AdminPage from "./pages/AdminPage";
 import RegisterPage from "./pages/RegisterPage";
 import ViewPage from "./pages/ViewPage";

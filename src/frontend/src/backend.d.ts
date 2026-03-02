@@ -18,6 +18,7 @@ export interface Player {
 export interface Tournament {
     id: string;
     status: TournamentStatus;
+    eliminationCount: bigint;
     name: string;
     createdAt: bigint;
     winner?: string;
@@ -58,7 +59,8 @@ export enum TournamentStatus {
 export interface backendInterface {
     addPlayer(tournamentId: string, name: string): Promise<Player>;
     completeTournament(tournamentId: string, winner: string): Promise<Tournament>;
-    createTournament(name: string): Promise<Tournament>;
+    createNextRound(tournamentId: string): Promise<Round>;
+    createTournament(name: string, eliminationCount: bigint | null): Promise<Tournament>;
     deleteTournament(tournamentId: string): Promise<void>;
     getAllTournaments(): Promise<Array<Tournament>>;
     getCurrentRound(tournamentId: string): Promise<Round | null>;
@@ -66,6 +68,7 @@ export interface backendInterface {
     getRoundsByTournament(tournamentId: string): Promise<Array<Round>>;
     getTournament(id: string): Promise<Tournament>;
     recordMatchResult(matchId: string, winnerId: string, loserId: string): Promise<Match>;
+    reshuffleCurrentRound(tournamentId: string): Promise<Round>;
     startTournament(tournamentId: string): Promise<Tournament>;
     updateTournamentStatus(tournamentId: string, status: TournamentStatus): Promise<Tournament>;
 }
