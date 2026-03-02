@@ -1,34 +1,36 @@
 # Chess Tournament Platform
 
 ## Current State
-- Full double-elimination chess tournament app with Admin panel at `/admin`, registration at `/register/:id`, and viewer at `/view/:id`
-- Elimination threshold is hardcoded to 2 losses in the backend (`recordMatchResult`)
-- `createTournament` accepts only a `name` parameter
-- Admin panel shows Winner History, Create Tournament form (name only), and tournament list with expand/collapse panels
-- Each tournament panel shows current round with dice reshuffle, standings table, and copy links
-- Manual reshuffle toggle already present in the UI
+
+- Admin panel lets admins record match results by clicking "Player X Wins"
+- Once a result is recorded (`recordMatchResult`), the match is marked `#completed` and the loser's loss count is incremented
+- There is no way to undo a result after it has been recorded
+- The `reshuffleCurrentRound` call is blocked once any match in the round has a completed result
 
 ## Requested Changes (Diff)
 
 ### Add
-- `eliminationCount` field on the `Tournament` type (how many losses before a player is eliminated)
-- `createTournament(name, eliminationCount)` — new parameter, default 2 if not specified
-- Admin Create Tournament form: numeric input for "Losses to Eliminate" (min 1, max 5, default 2) alongside the name field
-- Admin panel: display the elimination count as a badge/label on each tournament item and inside the tournament panel
+- Backend: `undoMatchResult(matchId)` — resets a completed match back to `#pending`, reverses the loser's loss/status changes, and marks the round as incomplete again
+- Frontend: An "Undo" button on each completed (non-bye) match card in admin view, allowing the admin to revert the result and re-select the correct winner
 
 ### Modify
-- Backend `recordMatchResult`: use `tournament.eliminationCount` instead of hardcoded `2`
-- Frontend `AdminPage`: expand Create Tournament form to include the elimination count input
-- `TournamentPanel` registration state: show elimination count prominently so admins know the rule
+- `MatchCard.tsx`: In the completed state for admin mode, show an "Undo" button alongside the winner label
+- `AdminPage.tsx`: Pass an `onUndo` callback into `MatchCard` and wire it to the new backend call; refresh queries after undo
+- `useQueries.ts`: Add `useUndoMatchResult` mutation hook
 
 ### Remove
 - Nothing removed
 
 ## Implementation Plan
-1. Update `Tournament` type in Motoko to add `eliminationCount: Nat` field
-2. Update `createTournament` to accept `eliminationCount: Nat` parameter (default 2)
-3. Update `recordMatchResult` to use `tournament.eliminationCount` when checking for elimination
-4. Regenerate backend bindings (`backend.d.ts`)
-5. Update Admin Create Tournament form to include a numeric "Losses to Eliminate" input (1–5)
-6. Show elimination count badge on TournamentItem list and inside TournamentPanel header
-7. Show elimination rule in the registration panel ("X losses = eliminated")
+
+1. **Backend**: Add `undoMatchResult(matchId: Text) : async Match`
+   - Trap if match is not completed or is a bye match
+   - Revert winner/loser player stats: decrement loser losses, update status (eliminated → oneLoss or active depending on count)
+   - Reset match to `{ winnerId = null; loserId = null; result = #pending }`
+   - Mark the round containing this match as `completed = false`
+
+2. **Frontend hook**: Add `useUndoMatchResult` mutation in `useQueries.ts` that calls `actor.undoMatchResult(matchId)` and invalidates currentRound, players, tournament queries
+
+3. **MatchCard.tsx**: In the `isCompleted && isAdmin` branch, show a small "Undo" button. Accept optional `onUndo?: () => Promise<void>` and `isUndoLoading?: boolean` props.
+
+4. **AdminPage.tsx**: Wire `onUndo` in the MatchCard call inside TournamentPanel — call `undoMatchResult`, show toast, refresh data.

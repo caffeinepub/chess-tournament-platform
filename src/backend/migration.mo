@@ -1,33 +1,14 @@
 import Map "mo:core/Map";
 import Text "mo:core/Text";
+import Int "mo:core/Int";
+import Nat "mo:core/Nat";
 
 module {
-  type TournamentStatus = {
-    #registration;
-    #active;
-    #completed;
-  };
+  type TournamentStatus = { #registration; #active; #completed };
+  type PlayerStatus = { #active; #oneLoss; #eliminated };
+  type MatchResult = { #pending; #completed };
 
-  type PlayerStatus = {
-    #active;
-    #oneLoss;
-    #eliminated;
-  };
-
-  type MatchResult = {
-    #pending;
-    #completed;
-  };
-
-  type OldTournament = {
-    id : Text;
-    name : Text;
-    status : TournamentStatus;
-    createdAt : Int;
-    winner : ?Text;
-  };
-
-  type NewTournament = {
+  type Tournament = {
     id : Text;
     name : Text;
     status : TournamentStatus;
@@ -66,31 +47,21 @@ module {
     byePlayerId : ?Text;
   };
 
-  type OldActor = {
-    tournaments : Map.Map<Text, OldTournament>;
+  type OldTuple = {
+    tournaments : Map.Map<Text, Tournament>;
     players : Map.Map<Text, Player>;
     rounds : Map.Map<Text, Round>;
     matches : Map.Map<Text, Match>;
   };
 
-  type NewActor = {
-    tournaments : Map.Map<Text, NewTournament>;
+  type NewTuple = {
+    tournaments : Map.Map<Text, Tournament>;
     players : Map.Map<Text, Player>;
     rounds : Map.Map<Text, Round>;
     matches : Map.Map<Text, Match>;
   };
 
-  public func run(old : OldActor) : NewActor {
-    let newTournaments = old.tournaments.map<Text, OldTournament, NewTournament>(
-      func(_id, oldTournament) {
-        { oldTournament with eliminationCount = 2 };
-      }
-    );
-    {
-      tournaments = newTournaments;
-      players = old.players;
-      rounds = old.rounds;
-      matches = old.matches;
-    };
+  public func run(old : OldTuple) : NewTuple {
+    old;
   };
 };

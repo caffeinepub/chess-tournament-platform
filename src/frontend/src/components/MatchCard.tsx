@@ -1,6 +1,12 @@
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCcw } from "lucide-react";
 import { type Match, MatchResult, type Player } from "../backend.d";
 import PlayerBadge from "./PlayerBadge";
 
@@ -8,7 +14,9 @@ interface MatchCardProps {
   match: Match;
   players?: Map<string, Player>;
   onWin?: (winnerId: string, loserId: string) => Promise<void>;
+  onUndo?: () => Promise<void>;
   isLoading?: boolean;
+  isUndoLoading?: boolean;
   isAdmin?: boolean;
 }
 
@@ -16,7 +24,9 @@ export default function MatchCard({
   match,
   players,
   onWin,
+  onUndo,
   isLoading,
+  isUndoLoading,
   isAdmin,
 }: MatchCardProps) {
   const isBye = !!match.byePlayerId;
@@ -73,7 +83,8 @@ export default function MatchCard({
       <div
         className={cn(
           "rounded-lg border border-border/30 bg-card/30 p-4",
-          "flex items-center justify-between opacity-60",
+          "flex items-center justify-between",
+          isAdmin && onUndo ? "opacity-70" : "opacity-60",
         )}
       >
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -98,6 +109,31 @@ export default function MatchCard({
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="text-gold font-mono font-bold">✓</span>
           <span>{winnerName} won</span>
+          {isAdmin && onUndo && (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={isUndoLoading}
+                    onClick={onUndo}
+                    aria-label="Undo match result"
+                    className="h-6 w-6 p-0 ml-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-colors"
+                  >
+                    {isUndoLoading ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-3 w-3" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="text-xs font-mono">
+                  Undo result — re-select winner
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
     );

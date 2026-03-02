@@ -70,5 +70,6 @@ export interface backendInterface {
     recordMatchResult(matchId: string, winnerId: string, loserId: string): Promise<Match>;
     reshuffleCurrentRound(tournamentId: string): Promise<Round>;
     startTournament(tournamentId: string): Promise<Tournament>;
+    undoMatchResult(matchId: string): Promise<Match>;
     updateTournamentStatus(tournamentId: string, status: TournamentStatus): Promise<Tournament>;
 }

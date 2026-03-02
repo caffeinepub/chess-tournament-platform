@@ -347,3 +347,31 @@ export function useReshuffleCurrentRound() {
     },
   });
 }
+
+export function useUndoMatchResult() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation<Match, Error, { matchId: string; tournamentId: string }>({
+    mutationFn: async ({ matchId }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.undoMatchResult(matchId);
+    },
+    onSuccess: async (_data, { tournamentId }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.currentRound(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.players(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.tournament(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.rounds(tournamentId),
+        }),
+      ]);
+    },
+  });
+}

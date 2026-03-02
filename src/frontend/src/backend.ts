@@ -152,6 +152,7 @@ export interface backendInterface {
     recordMatchResult(matchId: string, winnerId: string, loserId: string): Promise<Match>;
     reshuffleCurrentRound(tournamentId: string): Promise<Round>;
     startTournament(tournamentId: string): Promise<Tournament>;
+    undoMatchResult(matchId: string): Promise<Match>;
     updateTournamentStatus(tournamentId: string, status: TournamentStatus): Promise<Tournament>;
 }
 import type { Match as _Match, MatchResult as _MatchResult, Player as _Player, PlayerStatus as _PlayerStatus, Round as _Round, Tournament as _Tournament, TournamentStatus as _TournamentStatus } from "./declarations/backend.did.d.ts";
@@ -337,6 +338,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.startTournament(arg0);
             return from_candid_Tournament_n5(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async undoMatchResult(arg0: string): Promise<Match> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.undoMatchResult(arg0);
+                return from_candid_Match_n13(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.undoMatchResult(arg0);
+            return from_candid_Match_n13(this._uploadFile, this._downloadFile, result);
         }
     }
     async updateTournamentStatus(arg0: string, arg1: TournamentStatus): Promise<Tournament> {

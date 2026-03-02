@@ -72,6 +72,7 @@ export const idlService = IDL.Service({
   'recordMatchResult' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Match], []),
   'reshuffleCurrentRound' : IDL.Func([IDL.Text], [Round], []),
   'startTournament' : IDL.Func([IDL.Text], [Tournament], []),
+  'undoMatchResult' : IDL.Func([IDL.Text], [Match], []),
   'updateTournamentStatus' : IDL.Func(
       [IDL.Text, TournamentStatus],
       [Tournament],
@@ -154,6 +155,7 @@ export const idlFactory = ({ IDL }) => {
     'recordMatchResult' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Match], []),
     'reshuffleCurrentRound' : IDL.Func([IDL.Text], [Round], []),
     'startTournament' : IDL.Func([IDL.Text], [Tournament], []),
+    'undoMatchResult' : IDL.Func([IDL.Text], [Match], []),
     'updateTournamentStatus' : IDL.Func(
         [IDL.Text, TournamentStatus],
         [Tournament],

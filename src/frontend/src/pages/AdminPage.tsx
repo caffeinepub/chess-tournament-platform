@@ -40,6 +40,7 @@ import {
   useRecordMatchResult,
   useReshuffleCurrentRound,
   useStartTournament,
+  useUndoMatchResult,
 } from "../hooks/useQueries";
 
 // ─── Winner History ───────────────────────────────────────────────────────────
@@ -174,6 +175,7 @@ function StatusBadge({ status }: { status: TournamentStatus }) {
 
 function TournamentPanel({ tournamentId }: { tournamentId: string }) {
   const [loadingMatchId, setLoadingMatchId] = useState<string | null>(null);
+  const [undoingMatchId, setUndoingMatchId] = useState<string | null>(null);
   const [manualShuffleEnabled, setManualShuffleEnabled] = useState(false);
   const queryClient = useQueryClient();
 
@@ -185,6 +187,7 @@ function TournamentPanel({ tournamentId }: { tournamentId: string }) {
     useGetCurrentRound(tournamentId);
   const startMutation = useStartTournament();
   const recordMutation = useRecordMatchResult();
+  const undoMutation = useUndoMatchResult();
   const createNextRoundMutation = useCreateNextRound();
   const reshuffleMutation = useReshuffleCurrentRound();
 
@@ -269,6 +272,33 @@ function TournamentPanel({ tournamentId }: { tournamentId: string }) {
       }
     },
     [tournament, recordMutation, pollAfterResult, players],
+  );
+
+  const handleUndo = useCallback(
+    async (matchId: string) => {
+      if (!tournament) return;
+      setUndoingMatchId(matchId);
+      try {
+        await undoMutation.mutateAsync({
+          matchId,
+          tournamentId: tournament.id,
+        });
+        toast.success("Result undone — select the correct winner.");
+        await Promise.all([
+          queryClient.refetchQueries({
+            queryKey: queryKeys.currentRound(tournament.id),
+          }),
+          queryClient.refetchQueries({
+            queryKey: queryKeys.players(tournament.id),
+          }),
+        ]);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to undo result");
+      } finally {
+        setUndoingMatchId(null);
+      }
+    },
+    [tournament, undoMutation, queryClient],
   );
 
   const handleStartTournament = async () => {
@@ -510,8 +540,12 @@ function TournamentPanel({ tournamentId }: { tournamentId: string }) {
                 players={playersMap}
                 isAdmin
                 isLoading={loadingMatchId === match.id}
+                isUndoLoading={undoingMatchId === match.id}
                 onWin={async (winnerId, loserId) => {
                   await handleRecordResult(match.id, winnerId, loserId);
+                }}
+                onUndo={async () => {
+                  await handleUndo(match.id);
                 }}
               />
             ))}

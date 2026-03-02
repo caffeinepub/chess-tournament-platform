@@ -67,6 +67,7 @@ export interface _SERVICE {
   'recordMatchResult' : ActorMethod<[string, string, string], Match>,
   'reshuffleCurrentRound' : ActorMethod<[string], Round>,
   'startTournament' : ActorMethod<[string], Tournament>,
+  'undoMatchResult' : ActorMethod<[string], Match>,
   'updateTournamentStatus' : ActorMethod<
     [string, TournamentStatus],
     Tournament
