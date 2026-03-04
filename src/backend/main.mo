@@ -8,9 +8,9 @@ import VarArray "mo:core/VarArray";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
 import Int "mo:core/Int";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   type TournamentStatus = { #registration; #active; #completed };
 

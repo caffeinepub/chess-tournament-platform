@@ -6,7 +6,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Loader2, RotateCcw } from "lucide-react";
+import { ArrowLeft, CheckCircle, Loader2, RotateCcw } from "lucide-react";
+import { useState } from "react";
 import { type Match, MatchResult, type Player } from "../backend.d";
 import PlayerBadge from "./PlayerBadge";
 
@@ -29,6 +30,13 @@ export default function MatchCard({
   isUndoLoading,
   isAdmin,
 }: MatchCardProps) {
+  // pending confirmation: { winnerId, loserId, winnerName }
+  const [pendingWin, setPendingWin] = useState<{
+    winnerId: string;
+    loserId: string;
+    winnerName: string;
+  } | null>(null);
+
   const isBye = !!match.byePlayerId;
   const isCompleted = match.result === MatchResult.completed;
 
@@ -141,6 +149,63 @@ export default function MatchCard({
 
   // Active match (admin view with win buttons)
   if (isAdmin && onWin) {
+    // --- Confirmation step ---
+    if (pendingWin) {
+      return (
+        <div
+          className={cn(
+            "rounded-lg border border-gold/50 bg-card p-4",
+            "flex flex-col gap-3",
+          )}
+        >
+          <p className="text-sm text-muted-foreground font-mono">
+            Confirm winner selection:
+          </p>
+          <p className="text-base font-bold text-gold">
+            ♛ {pendingWin.winnerName} Wins
+          </p>
+          <p className="text-xs text-muted-foreground">
+            If you need to correct your selection, press the{" "}
+            <span className="text-foreground font-semibold">Back</span> button
+            below. Once you have made the correct choice, you can confirm, and
+            the selection will be saved.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 border-border text-muted-foreground hover:text-foreground font-mono text-xs"
+              disabled={isLoading}
+              onClick={() => setPendingWin(null)}
+            >
+              <ArrowLeft className="h-3 w-3 mr-1" />
+              Back
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 border-gold/50 text-gold hover:bg-gold/10 hover:border-gold font-mono text-xs"
+              disabled={isLoading}
+              onClick={async () => {
+                await onWin(pendingWin.winnerId, pendingWin.loserId);
+                setPendingWin(null);
+              }}
+            >
+              {isLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <>
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Confirm
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // --- Default: select winner ---
     return (
       <div
         className={cn(
@@ -183,26 +248,30 @@ export default function MatchCard({
             variant="outline"
             className="flex-1 sm:flex-none border-gold/30 text-gold hover:bg-gold/10 hover:border-gold font-mono text-xs"
             disabled={isLoading}
-            onClick={() => onWin(match.player1Id, match.player2Id)}
+            onClick={() =>
+              setPendingWin({
+                winnerId: match.player1Id,
+                loserId: match.player2Id,
+                winnerName: player1Name,
+              })
+            }
           >
-            {isLoading ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              `${player1Name} Wins`
-            )}
+            {player1Name} Wins
           </Button>
           <Button
             size="sm"
             variant="outline"
             className="flex-1 sm:flex-none border-gold/30 text-gold hover:bg-gold/10 hover:border-gold font-mono text-xs"
             disabled={isLoading}
-            onClick={() => onWin(match.player2Id, match.player1Id)}
+            onClick={() =>
+              setPendingWin({
+                winnerId: match.player2Id,
+                loserId: match.player1Id,
+                winnerName: player2Name,
+              })
+            }
           >
-            {isLoading ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              `${player2Name} Wins`
-            )}
+            {player2Name} Wins
           </Button>
         </div>
       </div>
