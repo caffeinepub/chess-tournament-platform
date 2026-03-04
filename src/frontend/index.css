@@ -2,103 +2,116 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('/assets/fonts/BricolageGrotesque[opsz,wdth,wght].woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 @layer base {
   :root {
     --radius: 0.375rem;
 
-    /* Chess-themed dark palette — always dark */
-    --background: 0.14 0.018 255;
-    --foreground: 0.94 0.012 260;
+    /* Hulk Smash dark cinematic palette — always dark */
+    --background: 0.08 0.01 145;
+    --foreground: 0.94 0.012 145;
 
-    --card: 0.18 0.022 255;
-    --card-foreground: 0.94 0.012 260;
+    --card: 0.11 0.018 145;
+    --card-foreground: 0.92 0.015 145;
 
-    --popover: 0.2 0.025 255;
-    --popover-foreground: 0.94 0.012 260;
+    --popover: 0.13 0.02 145;
+    --popover-foreground: 0.92 0.015 145;
 
-    /* Gold primary */
-    --primary: 0.78 0.17 78;
-    --primary-foreground: 0.12 0.02 255;
+    /* Hulk green primary */
+    --primary: 0.72 0.25 145;
+    --primary-foreground: 0.05 0.01 145;
 
-    --secondary: 0.22 0.028 255;
-    --secondary-foreground: 0.85 0.015 260;
+    --secondary: 0.14 0.022 145;
+    --secondary-foreground: 0.82 0.015 145;
 
-    --muted: 0.22 0.025 255;
-    --muted-foreground: 0.58 0.04 258;
+    --muted: 0.15 0.02 145;
+    --muted-foreground: 0.52 0.06 145;
 
-    /* Gold accent */
-    --accent: 0.72 0.16 78;
-    --accent-foreground: 0.12 0.02 255;
+    /* Bright green accent */
+    --accent: 0.68 0.28 145;
+    --accent-foreground: 0.05 0.01 145;
 
     --destructive: 0.58 0.22 27;
     --destructive-foreground: 0.98 0 0;
 
-    --border: 0.28 0.03 258;
-    --input: 0.22 0.025 255;
-    --ring: 0.72 0.16 78;
+    --border: 0.22 0.06 145;
+    --input: 0.14 0.022 145;
+    --ring: 0.68 0.25 145;
 
     /* Player status tokens */
-    --player-active: 0.78 0.18 145;
+    --player-active: 0.72 0.25 145;
     --player-one-loss: 0.72 0.19 44;
     --player-eliminated: 0.58 0.22 27;
 
     /* Status badge tokens */
-    --status-registration: 0.62 0.17 250;
+    --status-registration: 0.68 0.25 145;
     --status-active: 0.72 0.18 145;
-    --status-completed: 0.52 0.03 258;
+    --status-completed: 0.52 0.03 145;
 
-    --chart-1: 0.78 0.17 78;
-    --chart-2: 0.72 0.18 145;
+    --chart-1: 0.72 0.25 145;
+    --chart-2: 0.62 0.28 145;
     --chart-3: 0.72 0.19 44;
     --chart-4: 0.58 0.22 27;
-    --chart-5: 0.62 0.17 250;
+    --chart-5: 0.82 0.22 145;
 
-    --sidebar: 0.16 0.02 255;
-    --sidebar-foreground: 0.94 0.012 260;
-    --sidebar-primary: 0.78 0.17 78;
-    --sidebar-primary-foreground: 0.12 0.02 255;
-    --sidebar-accent: 0.22 0.028 255;
-    --sidebar-accent-foreground: 0.85 0.015 260;
-    --sidebar-border: 0.28 0.03 258;
-    --sidebar-ring: 0.72 0.16 78;
+    --sidebar: 0.10 0.015 145;
+    --sidebar-foreground: 0.92 0.015 145;
+    --sidebar-primary: 0.72 0.25 145;
+    --sidebar-primary-foreground: 0.05 0.01 145;
+    --sidebar-accent: 0.14 0.022 145;
+    --sidebar-accent-foreground: 0.82 0.015 145;
+    --sidebar-border: 0.22 0.06 145;
+    --sidebar-ring: 0.68 0.25 145;
+
+    /* Hulk theme extras */
+    --hulk-green: 0.72 0.28 145;
+    --hulk-green-bright: 0.82 0.32 145;
+    --hulk-green-dark: 0.35 0.18 145;
+    --stone-gray: 0.42 0.02 90;
+    --gold: 0.78 0.17 78;
   }
 
-  /* Force dark theme — always dark for this chess app */
+  /* Force dark theme — always dark for this tournament app */
   .dark, :root {
-    --background: 0.14 0.018 255;
-    --foreground: 0.94 0.012 260;
-    --card: 0.18 0.022 255;
-    --card-foreground: 0.94 0.012 260;
-    --popover: 0.22 0.025 255;
-    --popover-foreground: 0.94 0.012 260;
-    --primary: 0.78 0.17 78;
-    --primary-foreground: 0.12 0.02 255;
-    --secondary: 0.22 0.028 255;
-    --secondary-foreground: 0.85 0.015 260;
-    --muted: 0.22 0.025 255;
-    --muted-foreground: 0.58 0.04 258;
-    --accent: 0.72 0.16 78;
-    --accent-foreground: 0.12 0.02 255;
+    --background: 0.08 0.01 145;
+    --foreground: 0.94 0.012 145;
+    --card: 0.11 0.018 145;
+    --card-foreground: 0.92 0.015 145;
+    --popover: 0.13 0.02 145;
+    --popover-foreground: 0.92 0.015 145;
+    --primary: 0.72 0.25 145;
+    --primary-foreground: 0.05 0.01 145;
+    --secondary: 0.14 0.022 145;
+    --secondary-foreground: 0.82 0.015 145;
+    --muted: 0.15 0.02 145;
+    --muted-foreground: 0.52 0.06 145;
+    --accent: 0.68 0.28 145;
+    --accent-foreground: 0.05 0.01 145;
     --destructive: 0.58 0.22 27;
     --destructive-foreground: 0.98 0 0;
-    --border: 0.28 0.03 258;
-    --input: 0.22 0.025 255;
-    --ring: 0.72 0.16 78;
-    --chart-1: 0.78 0.17 78;
-    --chart-2: 0.72 0.18 145;
+    --border: 0.22 0.06 145;
+    --input: 0.14 0.022 145;
+    --ring: 0.68 0.25 145;
+    --chart-1: 0.72 0.25 145;
+    --chart-2: 0.62 0.28 145;
     --chart-3: 0.72 0.19 44;
     --chart-4: 0.58 0.22 27;
-    --chart-5: 0.62 0.17 250;
-    --sidebar: 0.16 0.02 255;
-    --sidebar-foreground: 0.94 0.012 260;
-    --sidebar-primary: 0.78 0.17 78;
-    --sidebar-primary-foreground: 0.12 0.02 255;
-    --sidebar-accent: 0.22 0.028 255;
-    --sidebar-accent-foreground: 0.85 0.015 260;
-    --sidebar-border: 0.28 0.03 258;
-    --sidebar-ring: 0.72 0.16 78;
+    --chart-5: 0.82 0.22 145;
+    --sidebar: 0.10 0.015 145;
+    --sidebar-foreground: 0.92 0.015 145;
+    --sidebar-primary: 0.72 0.25 145;
+    --sidebar-primary-foreground: 0.05 0.01 145;
+    --sidebar-accent: 0.14 0.022 145;
+    --sidebar-accent-foreground: 0.82 0.015 145;
+    --sidebar-border: 0.22 0.06 145;
+    --sidebar-ring: 0.68 0.25 145;
   }
 
   * {
@@ -110,51 +123,83 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
-    font-family: 'Space Grotesk', sans-serif;
+    @apply bg-background text-foreground;
+    font-family: 'Bricolage Grotesque', 'Space Grotesk', sans-serif;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.22 0.06 255 / 0.3), transparent),
-      radial-gradient(ellipse 40% 30% at 80% 80%, oklch(0.18 0.04 78 / 0.12), transparent);
+      radial-gradient(ellipse 100% 60% at 50% 0%, oklch(0.18 0.12 145 / 0.4), transparent),
+      radial-gradient(ellipse 60% 40% at 20% 80%, oklch(0.12 0.08 145 / 0.3), transparent),
+      radial-gradient(ellipse 50% 30% at 80% 60%, oklch(0.10 0.05 145 / 0.2), transparent);
+    background-color: oklch(0.06 0.01 145);
   }
 
   code, pre, .font-mono {
-    font-family: 'Space Mono', monospace;
+    font-family: 'Space Grotesk', monospace;
   }
 }
 
 @layer utilities {
-  /* Chess board background pattern */
+  /* Chess board background pattern — subtle green tint */
   .chess-bg {
     background-image:
-      linear-gradient(45deg, oklch(0.2 0.025 255 / 0.4) 25%, transparent 25%),
-      linear-gradient(-45deg, oklch(0.2 0.025 255 / 0.4) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, oklch(0.2 0.025 255 / 0.4) 75%),
-      linear-gradient(-45deg, transparent 75%, oklch(0.2 0.025 255 / 0.4) 75%);
+      linear-gradient(45deg, oklch(0.14 0.04 145 / 0.4) 25%, transparent 25%),
+      linear-gradient(-45deg, oklch(0.14 0.04 145 / 0.4) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, oklch(0.14 0.04 145 / 0.4) 75%),
+      linear-gradient(-45deg, transparent 75%, oklch(0.14 0.04 145 / 0.4) 75%);
     background-size: 40px 40px;
     background-position: 0 0, 0 20px, 20px -20px, -20px 0px;
   }
 
   .chess-bg-subtle {
     background-image:
-      linear-gradient(45deg, oklch(0.2 0.025 255 / 0.15) 25%, transparent 25%),
-      linear-gradient(-45deg, oklch(0.2 0.025 255 / 0.15) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, oklch(0.2 0.025 255 / 0.15) 75%),
-      linear-gradient(-45deg, transparent 75%, oklch(0.2 0.025 255 / 0.15) 75%);
+      linear-gradient(45deg, oklch(0.14 0.04 145 / 0.15) 25%, transparent 25%),
+      linear-gradient(-45deg, oklch(0.14 0.04 145 / 0.15) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, oklch(0.14 0.04 145 / 0.15) 75%),
+      linear-gradient(-45deg, transparent 75%, oklch(0.14 0.04 145 / 0.15) 75%);
     background-size: 32px 32px;
     background-position: 0 0, 0 16px, 16px -16px, -16px 0px;
   }
 
-  /* Gold text gradient */
+  /* Hulk green text gradient */
   .gold-text {
-    background: linear-gradient(135deg, oklch(0.86 0.18 82), oklch(0.72 0.18 60));
+    background: linear-gradient(135deg, oklch(0.86 0.28 145), oklch(0.62 0.25 145));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  /* Glowing gold border */
+  /* Hulk Smash cinematic background for register page */
+  .hulk-bg {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 100%, oklch(0.18 0.14 145 / 0.5), transparent),
+      radial-gradient(ellipse 100% 60% at 50% 0%, oklch(0.06 0.02 145), transparent),
+      linear-gradient(180deg, oklch(0.04 0.005 145) 0%, oklch(0.07 0.02 145) 50%, oklch(0.04 0.005 145) 100%);
+    background-color: oklch(0.04 0.005 145);
+  }
+
+  /* Metallic green name text */
+  .hulk-name-text {
+    background: linear-gradient(180deg,
+      oklch(0.92 0.32 145) 0%,
+      oklch(0.72 0.28 145) 40%,
+      oklch(0.55 0.22 145) 70%,
+      oklch(0.82 0.30 145) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px oklch(0.72 0.28 145 / 0.8)) drop-shadow(0 0 40px oklch(0.55 0.22 145 / 0.5));
+  }
+
+  /* Glowing green border */
   .gold-glow {
-    box-shadow: 0 0 20px oklch(0.78 0.17 78 / 0.25), 0 0 60px oklch(0.78 0.17 78 / 0.1);
+    box-shadow: 0 0 20px oklch(0.72 0.25 145 / 0.35), 0 0 60px oklch(0.55 0.22 145 / 0.15);
+  }
+
+  .hulk-glow {
+    box-shadow:
+      0 0 10px oklch(0.72 0.28 145 / 0.6),
+      0 0 30px oklch(0.55 0.22 145 / 0.4),
+      0 0 60px oklch(0.45 0.18 145 / 0.3);
   }
 
   /* Player status colors */
@@ -179,6 +224,115 @@
     animation: float 3s ease-in-out infinite;
   }
 
+  /* Hulk shake on button press */
+  @keyframes hulk-shake {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    10% { transform: translate(-3px, -2px) rotate(-1deg); }
+    20% { transform: translate(3px, 2px) rotate(1deg); }
+    30% { transform: translate(-4px, 1px) rotate(-0.5deg); }
+    40% { transform: translate(4px, -1px) rotate(0.5deg); }
+    50% { transform: translate(-2px, 3px) rotate(-1deg); }
+    60% { transform: translate(2px, -3px) rotate(1deg); }
+    70% { transform: translate(-3px, 2px) rotate(-0.5deg); }
+    80% { transform: translate(3px, -2px) rotate(0.5deg); }
+    90% { transform: translate(-1px, 1px) rotate(0deg); }
+  }
+  .hulk-shake {
+    animation: hulk-shake 0.6s ease-in-out;
+  }
+
+  /* Screen vibrate */
+  @keyframes screen-vibrate {
+    0%, 100% { transform: translate(0, 0); }
+    15% { transform: translate(-5px, 3px); }
+    30% { transform: translate(5px, -3px); }
+    45% { transform: translate(-3px, 5px); }
+    60% { transform: translate(3px, -5px); }
+    75% { transform: translate(-2px, 2px); }
+    90% { transform: translate(2px, -2px); }
+  }
+  .screen-vibrate {
+    animation: screen-vibrate 0.5s ease-in-out;
+  }
+
+  /* Hulk drop from above */
+  @keyframes hulk-drop {
+    0% { transform: translateY(-120%) scale(1.2); opacity: 0; }
+    60% { transform: translateY(10%) scale(0.95); opacity: 1; }
+    80% { transform: translateY(-5%) scale(1.02); }
+    100% { transform: translateY(0%) scale(1); opacity: 1; }
+  }
+  .hulk-drop {
+    animation: hulk-drop 0.7s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  }
+
+  /* Stone crack appear */
+  @keyframes crack-appear {
+    0% { opacity: 0; transform: scale(0.3); }
+    60% { opacity: 1; transform: scale(1.1); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .crack-appear {
+    animation: crack-appear 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  }
+
+  /* Stone shatter */
+  @keyframes shatter-tl {
+    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(-80px, -60px) rotate(-45deg); opacity: 0; }
+  }
+  @keyframes shatter-tr {
+    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(80px, -60px) rotate(45deg); opacity: 0; }
+  }
+  @keyframes shatter-bl {
+    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(-80px, 80px) rotate(-30deg); opacity: 0; }
+  }
+  @keyframes shatter-br {
+    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(80px, 80px) rotate(30deg); opacity: 0; }
+  }
+  @keyframes shatter-center {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(2); opacity: 0; }
+  }
+
+  /* Name reveal */
+  @keyframes name-reveal {
+    0% { opacity: 0; transform: scale(0.5) translateY(20px); filter: blur(10px); }
+    60% { opacity: 1; transform: scale(1.08) translateY(-5px); filter: blur(0); }
+    100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+  }
+  .name-reveal {
+    animation: name-reveal 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  }
+
+  /* Pulse glow for revealed name */
+  @keyframes name-pulse {
+    0%, 100% { filter: drop-shadow(0 0 15px oklch(0.72 0.28 145 / 0.8)) drop-shadow(0 0 40px oklch(0.55 0.22 145 / 0.5)); }
+    50% { filter: drop-shadow(0 0 30px oklch(0.82 0.32 145 / 1)) drop-shadow(0 0 60px oklch(0.65 0.28 145 / 0.8)); }
+  }
+  .name-pulse {
+    animation: name-pulse 2s ease-in-out infinite;
+  }
+
+  /* Particle float up */
+  @keyframes particle-rise {
+    0% { transform: translateY(0) translateX(0) scale(1); opacity: 0.8; }
+    100% { transform: translateY(-80px) translateX(var(--drift, 20px)) scale(0.2); opacity: 0; }
+  }
+
+  /* Impact flash */
+  @keyframes impact-flash {
+    0% { opacity: 0; }
+    20% { opacity: 0.8; }
+    100% { opacity: 0; }
+  }
+  .impact-flash {
+    animation: impact-flash 0.4s ease-out forwards;
+  }
+
   @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(16px); }
     to { opacity: 1; transform: translateY(0); }
@@ -193,20 +347,27 @@
   }
 
   .gold-shimmer {
-    background: linear-gradient(90deg, oklch(0.78 0.17 78), oklch(0.92 0.2 90), oklch(0.78 0.17 78));
+    background: linear-gradient(90deg, oklch(0.72 0.25 145), oklch(0.92 0.32 145), oklch(0.72 0.25 145));
     background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    animation: shimmer 3s linear infinite;
+    animation: shimmer 2s linear infinite;
   }
 
   @keyframes pulse-border {
-    0%, 100% { border-color: oklch(0.78 0.17 78 / 0.5); }
-    50% { border-color: oklch(0.78 0.17 78 / 1); }
+    0%, 100% { border-color: oklch(0.72 0.25 145 / 0.5); }
+    50% { border-color: oklch(0.72 0.25 145 / 1); }
   }
   .pulse-border {
     animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  /* Smoke particle animation */
+  @keyframes smoke-rise {
+    0% { transform: translateY(0) scale(0.5); opacity: 0.3; }
+    50% { opacity: 0.15; }
+    100% { transform: translateY(-120px) scale(2); opacity: 0; }
   }
 
   /* Scanline overlay effect */
@@ -223,5 +384,18 @@
     );
     pointer-events: none;
     z-index: 1;
+  }
+
+  /* Stone cracked texture border */
+  .stone-border {
+    border: 2px solid oklch(0.35 0.04 90 / 0.6);
+    box-shadow:
+      inset 0 0 20px oklch(0 0 0 / 0.4),
+      0 0 15px oklch(0.45 0.18 145 / 0.2);
+    background: linear-gradient(135deg,
+      oklch(0.18 0.02 90 / 0.8) 0%,
+      oklch(0.22 0.03 90 / 0.6) 50%,
+      oklch(0.15 0.02 90 / 0.8) 100%
+    );
   }
 }
