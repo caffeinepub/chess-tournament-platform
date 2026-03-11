@@ -59,6 +59,7 @@ export interface _SERVICE {
   'createNextRound' : ActorMethod<[string], Round>,
   'createTournament' : ActorMethod<[string, [] | [bigint]], Tournament>,
   'deleteTournament' : ActorMethod<[string], undefined>,
+  'deletePlayer' : ActorMethod<[string], undefined>,
   'getAllTournaments' : ActorMethod<[], Array<Tournament>>,
   'getCurrentRound' : ActorMethod<[string], [] | [Round]>,
   'getPlayersByTournament' : ActorMethod<[string], Array<Player>>,

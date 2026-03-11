@@ -548,6 +548,63 @@ actor {
     tournaments.remove(tournamentId);
   };
 
+  public shared ({ caller }) func deletePlayer(playerId : Text) : async () {
+    let player = getPlayerOrTrap(playerId);
+    let updatedPlayer : Player = {
+      id = player.id;
+      tournamentId = player.tournamentId;
+      name = player.name;
+      losses = player.losses;
+      eliminated = true;
+      status = #eliminated;
+    };
+    players.add(playerId, updatedPlayer);
+    for ((matchId, match) in matches.entries()) {
+      if (match.result == #pending and match.byePlayerId == null) {
+        if (match.player1Id == playerId or match.player2Id == playerId) {
+          let winnerId = if (match.player1Id == playerId) { match.player2Id } else { match.player1Id };
+          let updatedMatch : Match = {
+            id = match.id;
+            tournamentId = match.tournamentId;
+            roundNumber = match.roundNumber;
+            player1Id = match.player1Id;
+            player2Id = match.player2Id;
+            player1Name = match.player1Name;
+            player2Name = match.player2Name;
+            winnerId = ?winnerId;
+            loserId = ?playerId;
+            result = #completed;
+            byePlayerId = null;
+          };
+          matches.add(matchId, updatedMatch);
+          for ((roundId, round) in rounds.entries()) {
+            if (round.tournamentId == match.tournamentId and round.roundNumber == match.roundNumber) {
+              let updatedMatches = Array.tabulate(
+                round.matches.size(),
+                func(i) {
+                  if (i < round.matches.size() and round.matches[i].id == matchId) {
+                    updatedMatch;
+                  } else if (i < round.matches.size()) { round.matches[i] } else { match };
+                },
+              );
+              let isRoundCompleted = updatedMatches.foldLeft(
+                true,
+                func(acc, m) { acc and (m.result == #completed or m.byePlayerId != null) },
+              );
+              rounds.add(roundId, {
+                roundNumber = round.roundNumber;
+                tournamentId = round.tournamentId;
+                matches = updatedMatches;
+                completed = isRoundCompleted;
+              });
+            };
+          };
+        };
+      };
+    };
+  };
+
+
   public shared ({ caller }) func reshuffleCurrentRound(tournamentId : Text) : async Round {
     let tournament = switch (tournaments.get(tournamentId)) {
       case (null) { Runtime.trap("Tournament does not exist") };

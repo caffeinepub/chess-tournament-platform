@@ -62,6 +62,7 @@ export interface backendInterface {
     createNextRound(tournamentId: string): Promise<Round>;
     createTournament(name: string, eliminationCount: bigint | null): Promise<Tournament>;
     deleteTournament(tournamentId: string): Promise<void>;
+    deletePlayer(playerId: string): Promise<void>;
     getAllTournaments(): Promise<Array<Tournament>>;
     getCurrentRound(tournamentId: string): Promise<Round | null>;
     getPlayersByTournament(tournamentId: string): Promise<Array<Player>>;

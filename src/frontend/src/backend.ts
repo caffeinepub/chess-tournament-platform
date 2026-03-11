@@ -144,6 +144,7 @@ export interface backendInterface {
     createNextRound(tournamentId: string): Promise<Round>;
     createTournament(name: string, eliminationCount: bigint | null): Promise<Tournament>;
     deleteTournament(tournamentId: string): Promise<void>;
+    deletePlayer(playerId: string): Promise<void>;
     getAllTournaments(): Promise<Array<Tournament>>;
     getCurrentRound(tournamentId: string): Promise<Round | null>;
     getPlayersByTournament(tournamentId: string): Promise<Array<Player>>;
@@ -212,6 +213,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.createTournament(arg0, to_candid_opt_n17(this._uploadFile, this._downloadFile, arg1));
             return from_candid_Tournament_n5(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async deletePlayer(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deletePlayer(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deletePlayer(arg0);
+            return result;
         }
     }
     async deleteTournament(arg0: string): Promise<void> {

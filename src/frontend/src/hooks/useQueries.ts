@@ -494,3 +494,35 @@ export function useUndoMatchResult() {
     },
   });
 }
+
+export function useDeletePlayer() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, { playerId: string; tournamentId: string }>({
+    mutationFn: async ({ playerId }) => {
+      if (!actor) throw new Error("Not connected");
+      try {
+        return await withCanisterRetry(() => actor.deletePlayer(playerId));
+      } catch (e) {
+        throw normalizeError(e);
+      }
+    },
+    onSuccess: async (_data, { tournamentId }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.players(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.currentRound(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.rounds(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.tournament(tournamentId),
+        }),
+      ]);
+    },
+  });
+}

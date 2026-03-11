@@ -34,6 +34,7 @@ import {
   queryKeys,
   useCreateNextRound,
   useCreateTournament,
+  useDeletePlayer,
   useDeleteTournament,
   useGetAllTournaments,
   useGetCurrentRound,
@@ -339,6 +340,7 @@ function TournamentPanel({
   const undoMutation = useUndoMatchResult();
   const createNextRoundMutation = useCreateNextRound();
   const reshuffleMutation = useReshuffleCurrentRound();
+  const deletePlayerMutation = useDeletePlayer();
 
   const playersMap = new Map(players.map((p) => [p.id, p]));
   const activePlayers = players.filter((p) => !p.eliminated);
@@ -900,6 +902,12 @@ function TournamentPanel({
                 >
                   Status
                 </th>
+                <th
+                  className="text-right p-3 font-mono text-xs uppercase tracking-wider"
+                  style={{ color: "oklch(0.42 0.10 145)" }}
+                >
+                  Remove
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -934,6 +942,45 @@ function TournamentPanel({
                       >
                         {getPlayerStatusLabel(player)}
                       </span>
+                    </td>
+                    <td className="p-3 text-right">
+                      {!player.eliminated && (
+                        <button
+                          type="button"
+                          data-ocid="admin.standings.delete_button"
+                          title="Remove player from tournament"
+                          onClick={async () => {
+                            if (
+                              !confirm(
+                                `Remove "${player.name}" from the tournament? Their pending matches will be forfeited.`,
+                              )
+                            )
+                              return;
+                            try {
+                              await deletePlayerMutation.mutateAsync({
+                                playerId: player.id,
+                                tournamentId,
+                              });
+                              toast.success(`${player.name} removed`);
+                            } catch (e) {
+                              const msg =
+                                e instanceof Error ? e.message : String(e);
+                              if (
+                                msg.includes("IC0508") ||
+                                msg.includes("stopped")
+                              ) {
+                                onCanisterOffline();
+                              } else {
+                                toast.error(msg);
+                              }
+                            }
+                          }}
+                          disabled={deletePlayerMutation.isPending}
+                          className="p-1 rounded transition-colors text-muted-foreground hover:text-red-400 hover:bg-red-400/10"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
