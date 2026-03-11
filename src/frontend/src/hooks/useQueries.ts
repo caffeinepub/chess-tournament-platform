@@ -9,6 +9,49 @@ import type {
 import { createActorWithConfig } from "../config";
 import { useActor } from "./useActor";
 
+// ─── Error helpers ────────────────────────────────────────────────────────────
+
+function isCanisterStopped(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return (
+    msg.includes("IC0508") ||
+    msg.includes("is stopped") ||
+    (msg.includes("Canister") && msg.includes("stopped"))
+  );
+}
+
+function normalizeError(e: unknown): Error {
+  if (isCanisterStopped(e)) {
+    return new Error(
+      "The backend is temporarily offline. Please refresh the page and try again in a moment.",
+    );
+  }
+  return e instanceof Error ? e : new Error(String(e));
+}
+
+/**
+ * Retries an async call up to `maxAttempts` times when a canister-stopped
+ * error is detected. Uses exponential backoff: 2s, 4s, 8s, ...
+ */
+async function withCanisterRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 5,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastError = e;
+      if (!isCanisterStopped(e)) throw e;
+      // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+      const delayMs = Math.min(2000 * 2 ** attempt, 32_000);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw normalizeError(lastError);
+}
+
 // ─── Query Keys ────────────────────────────────────────────────────────────────
 export const queryKeys = {
   tournaments: ["tournaments"] as const,
@@ -27,9 +70,14 @@ export function useGetAllTournaments() {
     queryKey: queryKeys.tournaments,
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllTournaments();
+      return withCanisterRetry(() => actor.getAllTournaments());
     },
     enabled: !!actor && !isFetching,
+    retry: (failureCount, error) => {
+      if (isCanisterStopped(error)) return failureCount < 4;
+      return false;
+    },
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 32_000),
   });
 }
 
@@ -40,13 +88,18 @@ export function useGetTournament(id: string) {
     queryFn: async () => {
       if (!actor) return null;
       try {
-        return await actor.getTournament(id);
+        return await withCanisterRetry(() => actor.getTournament(id));
       } catch {
         return null;
       }
     },
     enabled: !!actor && !isFetching && !!id,
     refetchInterval: 10_000,
+    retry: (failureCount, error) => {
+      if (isCanisterStopped(error)) return failureCount < 4;
+      return false;
+    },
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 32_000),
   });
 }
 
@@ -56,10 +109,17 @@ export function useGetPlayers(tournamentId: string) {
     queryKey: queryKeys.players(tournamentId),
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getPlayersByTournament(tournamentId);
+      return withCanisterRetry(() =>
+        actor.getPlayersByTournament(tournamentId),
+      );
     },
     enabled: !!actor && !isFetching && !!tournamentId,
     refetchInterval: 8_000,
+    retry: (failureCount, error) => {
+      if (isCanisterStopped(error)) return failureCount < 4;
+      return false;
+    },
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 32_000),
   });
 }
 
@@ -69,10 +129,15 @@ export function useGetCurrentRound(tournamentId: string) {
     queryKey: queryKeys.currentRound(tournamentId),
     queryFn: async () => {
       if (!actor) return null;
-      return actor.getCurrentRound(tournamentId);
+      return withCanisterRetry(() => actor.getCurrentRound(tournamentId));
     },
     enabled: !!actor && !isFetching && !!tournamentId,
     refetchInterval: 8_000,
+    retry: (failureCount, error) => {
+      if (isCanisterStopped(error)) return failureCount < 4;
+      return false;
+    },
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 32_000),
   });
 }
 
@@ -82,10 +147,15 @@ export function useGetRounds(tournamentId: string) {
     queryKey: queryKeys.rounds(tournamentId),
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getRoundsByTournament(tournamentId);
+      return withCanisterRetry(() => actor.getRoundsByTournament(tournamentId));
     },
     enabled: !!actor && !isFetching && !!tournamentId,
     refetchInterval: 10_000,
+    retry: (failureCount, error) => {
+      if (isCanisterStopped(error)) return failureCount < 4;
+      return false;
+    },
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 32_000),
   });
 }
 
@@ -98,13 +168,18 @@ export function useGetTournamentPublic(id: string) {
       if (!id) return null;
       try {
         const actor = await createActorWithConfig();
-        return await actor.getTournament(id);
+        return await withCanisterRetry(() => actor.getTournament(id));
       } catch {
         return null;
       }
     },
     enabled: !!id,
     refetchInterval: 8_000,
+    retry: (failureCount, error) => {
+      if (isCanisterStopped(error)) return failureCount < 4;
+      return false;
+    },
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 32_000),
   });
 }
 
@@ -114,10 +189,17 @@ export function useGetPlayersPublic(tournamentId: string) {
     queryFn: async () => {
       if (!tournamentId) return [];
       const actor = await createActorWithConfig();
-      return actor.getPlayersByTournament(tournamentId);
+      return withCanisterRetry(() =>
+        actor.getPlayersByTournament(tournamentId),
+      );
     },
     enabled: !!tournamentId,
     refetchInterval: 8_000,
+    retry: (failureCount, error) => {
+      if (isCanisterStopped(error)) return failureCount < 4;
+      return false;
+    },
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 32_000),
   });
 }
 
@@ -127,10 +209,15 @@ export function useGetCurrentRoundPublic(tournamentId: string) {
     queryFn: async () => {
       if (!tournamentId) return null;
       const actor = await createActorWithConfig();
-      return actor.getCurrentRound(tournamentId);
+      return withCanisterRetry(() => actor.getCurrentRound(tournamentId));
     },
     enabled: !!tournamentId,
     refetchInterval: 8_000,
+    retry: (failureCount, error) => {
+      if (isCanisterStopped(error)) return failureCount < 4;
+      return false;
+    },
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 32_000),
   });
 }
 
@@ -140,10 +227,15 @@ export function useGetRoundsPublic(tournamentId: string) {
     queryFn: async () => {
       if (!tournamentId) return [];
       const actor = await createActorWithConfig();
-      return actor.getRoundsByTournament(tournamentId);
+      return withCanisterRetry(() => actor.getRoundsByTournament(tournamentId));
     },
     enabled: !!tournamentId,
     refetchInterval: 10_000,
+    retry: (failureCount, error) => {
+      if (isCanisterStopped(error)) return failureCount < 4;
+      return false;
+    },
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 32_000),
   });
 }
 
@@ -152,9 +244,14 @@ export function useGetAllTournamentsPublic() {
     queryKey: ["public", "tournaments"],
     queryFn: async () => {
       const actor = await createActorWithConfig();
-      return actor.getAllTournaments();
+      return withCanisterRetry(() => actor.getAllTournaments());
     },
     refetchInterval: 10_000,
+    retry: (failureCount, error) => {
+      if (isCanisterStopped(error)) return failureCount < 4;
+      return false;
+    },
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 32_000),
   });
 }
 
@@ -171,7 +268,13 @@ export function useCreateTournament() {
   >({
     mutationFn: async ({ name, eliminationCount }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.createTournament(name, eliminationCount);
+      try {
+        return await withCanisterRetry(() =>
+          actor.createTournament(name, eliminationCount),
+        );
+      } catch (e) {
+        throw normalizeError(e);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tournaments });
@@ -186,7 +289,13 @@ export function useStartTournament() {
   return useMutation<Tournament, Error, string>({
     mutationFn: async (tournamentId: string) => {
       if (!actor) throw new Error("Not connected");
-      return actor.startTournament(tournamentId);
+      try {
+        return await withCanisterRetry(() =>
+          actor.startTournament(tournamentId),
+        );
+      } catch (e) {
+        throw normalizeError(e);
+      }
     },
     onSuccess: (_data, tournamentId) => {
       queryClient.invalidateQueries({
@@ -226,7 +335,13 @@ export function useRecordMatchResult() {
   >({
     mutationFn: async ({ matchId, winnerId, loserId }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.recordMatchResult(matchId, winnerId, loserId);
+      try {
+        return await withCanisterRetry(() =>
+          actor.recordMatchResult(matchId, winnerId, loserId),
+        );
+      } catch (e) {
+        throw normalizeError(e);
+      }
     },
     onSuccess: async (_data, { tournamentId }) => {
       // Refresh all tournament data
@@ -254,7 +369,7 @@ export function useAddPlayer() {
   return useMutation<Player, Error, { tournamentId: string; name: string }>({
     mutationFn: async ({ tournamentId, name }) => {
       const actor = await createActorWithConfig();
-      return actor.addPlayer(tournamentId, name);
+      return withCanisterRetry(() => actor.addPlayer(tournamentId, name));
     },
     onSuccess: (_data, { tournamentId }) => {
       queryClient.invalidateQueries({
@@ -273,7 +388,7 @@ export function useCreateNextRound() {
   return useMutation<Round, Error, string>({
     mutationFn: async (tournamentId: string) => {
       const actor = await createActorWithConfig();
-      return actor.createNextRound(tournamentId);
+      return withCanisterRetry(() => actor.createNextRound(tournamentId));
     },
     onSuccess: (_data, tournamentId) => {
       queryClient.invalidateQueries({
@@ -297,7 +412,9 @@ export function useCompleteTournament() {
   >({
     mutationFn: async ({ tournamentId, winnerId }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.completeTournament(tournamentId, winnerId);
+      return withCanisterRetry(() =>
+        actor.completeTournament(tournamentId, winnerId),
+      );
     },
     onSuccess: (_data, { tournamentId }) => {
       queryClient.invalidateQueries({
@@ -319,7 +436,9 @@ export function useUpdateTournamentStatus() {
   >({
     mutationFn: async ({ tournamentId, status }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.updateTournamentStatus(tournamentId, status);
+      return withCanisterRetry(() =>
+        actor.updateTournamentStatus(tournamentId, status),
+      );
     },
     onSuccess: (_data, { tournamentId }) => {
       queryClient.invalidateQueries({
@@ -335,7 +454,7 @@ export function useReshuffleCurrentRound() {
   return useMutation<Round, Error, string>({
     mutationFn: async (tournamentId: string) => {
       const actor = await createActorWithConfig();
-      return actor.reshuffleCurrentRound(tournamentId);
+      return withCanisterRetry(() => actor.reshuffleCurrentRound(tournamentId));
     },
     onSuccess: (_data, tournamentId) => {
       queryClient.invalidateQueries({
@@ -355,7 +474,7 @@ export function useUndoMatchResult() {
   return useMutation<Match, Error, { matchId: string; tournamentId: string }>({
     mutationFn: async ({ matchId }) => {
       if (!actor) throw new Error("Not connected");
-      return actor.undoMatchResult(matchId);
+      return withCanisterRetry(() => actor.undoMatchResult(matchId));
     },
     onSuccess: async (_data, { tournamentId }) => {
       await Promise.all([
