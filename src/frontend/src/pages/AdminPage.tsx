@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Bell,
   ChevronDown,
   ChevronUp,
   Dices,
@@ -16,6 +17,7 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  Send,
   Star,
   Trash2,
   UserX,
@@ -36,6 +38,7 @@ import { createActorWithConfig } from "../config";
 import {
   queryKeys,
   useAddPlayerAdmin,
+  useBroadcastNotification,
   useChangePlayerName,
   useChangePlayerRating,
   useCreateNextRound,
@@ -45,6 +48,8 @@ import {
   useDisqualifyPlayer,
   useGetAllTournaments,
   useGetCurrentRound,
+  useGetNotificationLog,
+  useGetNotificationSettings,
   useGetPlayers,
   useGetRounds,
   useGetTournament,
@@ -52,6 +57,7 @@ import {
   useReshuffleCurrentRound,
   useStartTournament,
   useUndoMatchResult,
+  useUpdateNotificationSettings,
 } from "../hooks/useQueries";
 
 // ─── Canister Offline Banner ──────────────────────────────────────────────────
@@ -336,9 +342,9 @@ function PlayerManagementPanel({
   tournament: Tournament;
   onCanisterOffline: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"management" | "statistics">(
-    "management",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "management" | "statistics" | "notifications"
+  >("management");
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
   const [editRatingPlayerId, setEditRatingPlayerId] = useState<string | null>(
@@ -536,6 +542,23 @@ function PlayerManagementPanel({
           }
         >
           ♜ Statistics
+        </button>
+        <button
+          type="button"
+          data-ocid="admin.notifications.tab"
+          onClick={() => setActiveTab("notifications")}
+          className="flex-1 py-2.5 text-xs font-mono uppercase tracking-wider transition-all flex items-center justify-center gap-1"
+          style={
+            activeTab === "notifications"
+              ? {
+                  background: "oklch(0.15 0.06 145 / 0.8)",
+                  color: "oklch(0.72 0.28 145)",
+                  borderBottom: "2px solid oklch(0.72 0.28 145)",
+                }
+              : { color: "oklch(0.42 0.10 145)" }
+          }
+        >
+          🔔 Notifications
         </button>
       </div>
 
@@ -967,6 +990,384 @@ function PlayerManagementPanel({
           </p>
         </div>
       )}
+
+      {activeTab === "notifications" && (
+        <NotificationsPanel tournamentId={tournamentId} />
+      )}
+    </div>
+  );
+}
+
+// ─── Notifications Panel ──────────────────────────────────────────────────────
+
+function NotificationsPanel({ tournamentId }: { tournamentId: string }) {
+  const { data: settings, isLoading: settingsLoading } =
+    useGetNotificationSettings(tournamentId);
+  const {
+    data: log = [],
+    refetch: refetchLog,
+    isLoading: logLoading,
+  } = useGetNotificationLog(tournamentId);
+  const updateSettings = useUpdateNotificationSettings();
+  const broadcast = useBroadcastNotification();
+
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastBody, setBroadcastBody] = useState("");
+  const [broadcastStatus, setBroadcastStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle");
+
+  const handleToggle = async (
+    key: "matchResultEnabled" | "nextRoundEnabled" | "tournamentStartEnabled",
+    value: boolean,
+  ) => {
+    if (!settings) return;
+    const updated = { ...settings, [key]: value };
+    try {
+      await updateSettings.mutateAsync({
+        tournamentId,
+        matchResultEnabled: updated.matchResultEnabled,
+        nextRoundEnabled: updated.nextRoundEnabled,
+        tournamentStartEnabled: updated.tournamentStartEnabled,
+      });
+      toast.success("Settings updated");
+    } catch {
+      toast.error("Failed to update settings");
+    }
+  };
+
+  const handleBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastBody.trim()) return;
+    setBroadcastStatus("idle");
+    try {
+      await broadcast.mutateAsync({
+        tournamentId,
+        title: broadcastTitle.trim(),
+        body: broadcastBody.trim(),
+      });
+      setBroadcastStatus("success");
+      setBroadcastTitle("");
+      setBroadcastBody("");
+      toast.success("Broadcast sent!");
+      refetchLog();
+    } catch {
+      setBroadcastStatus("error");
+      toast.error("Broadcast failed");
+    }
+  };
+
+  const cardStyle = {
+    background: "oklch(0.10 0.02 145 / 0.6)",
+    border: "1px solid oklch(0.22 0.06 145 / 0.5)",
+  };
+  const headingStyle = { color: "oklch(0.72 0.28 145)" };
+  const labelStyle = { color: "oklch(0.62 0.14 145)" };
+
+  return (
+    <div className="space-y-6">
+      {/* Section A — Notification Settings */}
+      <div className="rounded-lg p-4 space-y-4" style={cardStyle}>
+        <h3
+          className="text-sm font-black uppercase tracking-widest flex items-center gap-2"
+          style={headingStyle}
+        >
+          <Bell className="h-4 w-4" />
+          Notification Settings
+        </h3>
+        {settingsLoading ? (
+          <div
+            className="flex items-center gap-2 text-sm"
+            style={{ color: "oklch(0.45 0.10 145)" }}
+          >
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading settings...
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="notif-result-switch"
+                className="text-xs font-mono uppercase tracking-wider"
+                style={labelStyle}
+              >
+                Match Result Notifications
+              </label>
+              <Switch
+                id="notif-result-switch"
+                data-ocid="notif.result.switch"
+                checked={settings?.matchResultEnabled ?? false}
+                onCheckedChange={(v) => handleToggle("matchResultEnabled", v)}
+                disabled={updateSettings.isPending}
+                style={
+                  settings?.matchResultEnabled
+                    ? { background: "oklch(0.58 0.26 145)" }
+                    : undefined
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="notif-nextround-switch"
+                className="text-xs font-mono uppercase tracking-wider"
+                style={labelStyle}
+              >
+                Next Round Notifications
+              </label>
+              <Switch
+                id="notif-nextround-switch"
+                data-ocid="notif.nextround.switch"
+                checked={settings?.nextRoundEnabled ?? false}
+                onCheckedChange={(v) => handleToggle("nextRoundEnabled", v)}
+                disabled={updateSettings.isPending}
+                style={
+                  settings?.nextRoundEnabled
+                    ? { background: "oklch(0.58 0.26 145)" }
+                    : undefined
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="notif-start-switch"
+                className="text-xs font-mono uppercase tracking-wider"
+                style={labelStyle}
+              >
+                Tournament Start Notifications
+              </label>
+              <Switch
+                id="notif-start-switch"
+                data-ocid="notif.start.switch"
+                checked={settings?.tournamentStartEnabled ?? false}
+                onCheckedChange={(v) =>
+                  handleToggle("tournamentStartEnabled", v)
+                }
+                disabled={updateSettings.isPending}
+                style={
+                  settings?.tournamentStartEnabled
+                    ? { background: "oklch(0.58 0.26 145)" }
+                    : undefined
+                }
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Section B — Manual Broadcast */}
+      <div className="rounded-lg p-4 space-y-4" style={cardStyle}>
+        <h3
+          className="text-sm font-black uppercase tracking-widest flex items-center gap-2"
+          style={headingStyle}
+        >
+          <Send className="h-4 w-4" />
+          Broadcast to All Players
+        </h3>
+        <form onSubmit={handleBroadcast} className="space-y-3">
+          <Input
+            data-ocid="notif.broadcast.input"
+            value={broadcastTitle}
+            onChange={(e) => setBroadcastTitle(e.target.value)}
+            placeholder="Notification title"
+            className="font-mono text-sm"
+            style={{
+              background: "oklch(0.11 0.02 145 / 0.8)",
+              borderColor: "oklch(0.25 0.08 145 / 0.6)",
+              color: "oklch(0.90 0.10 145)",
+            }}
+          />
+          <textarea
+            data-ocid="notif.broadcast.textarea"
+            value={broadcastBody}
+            onChange={(e) => setBroadcastBody(e.target.value)}
+            placeholder="Enter message for all players..."
+            rows={3}
+            className="w-full rounded-md px-3 py-2 text-sm font-mono resize-none outline-none"
+            style={{
+              background: "oklch(0.11 0.02 145 / 0.8)",
+              border: "1px solid oklch(0.25 0.08 145 / 0.6)",
+              color: "oklch(0.90 0.10 145)",
+            }}
+          />
+          {broadcastStatus === "success" && (
+            <p
+              className="text-xs font-mono"
+              style={{ color: "oklch(0.72 0.28 145)" }}
+              data-ocid="notif.broadcast.success_state"
+            >
+              ✓ Broadcast sent successfully
+            </p>
+          )}
+          {broadcastStatus === "error" && (
+            <p
+              className="text-xs font-mono"
+              style={{ color: "oklch(0.65 0.22 27)" }}
+              data-ocid="notif.broadcast.error_state"
+            >
+              ✗ Failed to send broadcast
+            </p>
+          )}
+          <Button
+            type="submit"
+            data-ocid="notif.broadcast.button"
+            disabled={
+              !broadcastTitle.trim() ||
+              !broadcastBody.trim() ||
+              broadcast.isPending
+            }
+            className="w-full font-mono font-bold text-xs uppercase tracking-wider"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.42 0.20 145), oklch(0.58 0.26 145))",
+              color: "oklch(0.06 0.01 145)",
+              border: "none",
+            }}
+          >
+            {broadcast.isPending ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="h-3.5 w-3.5 mr-2" />
+                Send Broadcast
+              </>
+            )}
+          </Button>
+        </form>
+      </div>
+
+      {/* Section C — Notification Log */}
+      <div className="rounded-lg p-4 space-y-3" style={cardStyle}>
+        <div className="flex items-center justify-between">
+          <h3
+            className="text-sm font-black uppercase tracking-widest flex items-center gap-2"
+            style={headingStyle}
+          >
+            🔔 Notification Log
+          </h3>
+          <button
+            type="button"
+            data-ocid="notif.log.refresh.button"
+            onClick={() => refetchLog()}
+            disabled={logLoading}
+            className="flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded transition-all hover:opacity-80"
+            style={{
+              color: "oklch(0.55 0.12 145)",
+              border: "1px solid oklch(0.22 0.06 145 / 0.5)",
+              background: "oklch(0.09 0.02 145 / 0.5)",
+            }}
+          >
+            <RefreshCw
+              className={`h-3 w-3 ${logLoading ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </button>
+        </div>
+
+        {log.length === 0 ? (
+          <div
+            className="py-8 text-center rounded-lg"
+            data-ocid="notif.log.empty_state"
+            style={{
+              border: "1px dashed oklch(0.22 0.06 145 / 0.4)",
+              background: "oklch(0.08 0.01 145 / 0.3)",
+            }}
+          >
+            <Bell
+              className="h-6 w-6 mx-auto mb-2 opacity-20"
+              style={{ color: "oklch(0.72 0.28 145)" }}
+            />
+            <p
+              className="text-xs font-mono"
+              style={{ color: "oklch(0.38 0.08 145)" }}
+            >
+              No notifications sent yet.
+            </p>
+          </div>
+        ) : (
+          <div
+            className="overflow-x-auto rounded-lg"
+            style={{ border: "1px solid oklch(0.22 0.06 145 / 0.4)" }}
+          >
+            <table
+              className="w-full text-xs font-mono"
+              data-ocid="notif.log.table"
+            >
+              <thead>
+                <tr
+                  style={{
+                    borderBottom: "1px solid oklch(0.22 0.06 145 / 0.5)",
+                    background: "oklch(0.09 0.02 145 / 0.6)",
+                  }}
+                >
+                  {["Time", "Type", "Title", "Message", "Target"].map((h) => (
+                    <th
+                      key={h}
+                      className="px-3 py-2 text-left uppercase tracking-wider"
+                      style={{ color: "oklch(0.42 0.10 145)" }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {log.map((n, idx) => (
+                  <tr
+                    key={n.id}
+                    data-ocid={`notif.log.row.${idx + 1}`}
+                    style={{
+                      borderBottom: "1px solid oklch(0.15 0.04 145 / 0.3)",
+                      background:
+                        idx % 2 === 0
+                          ? "oklch(0.09 0.02 145 / 0.3)"
+                          : "transparent",
+                    }}
+                  >
+                    <td
+                      className="px-3 py-2 whitespace-nowrap"
+                      style={{ color: "oklch(0.48 0.10 145)" }}
+                    >
+                      {new Date(
+                        Number(n.createdAt) / 1_000_000,
+                      ).toLocaleTimeString(undefined, {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td
+                      className="px-3 py-2"
+                      style={{ color: "oklch(0.60 0.16 145)" }}
+                    >
+                      {n.notifType}
+                    </td>
+                    <td
+                      className="px-3 py-2 font-bold max-w-[120px] truncate"
+                      style={{ color: "oklch(0.82 0.18 145)" }}
+                    >
+                      {n.title}
+                    </td>
+                    <td
+                      className="px-3 py-2 max-w-[200px] truncate"
+                      style={{ color: "oklch(0.62 0.12 145)" }}
+                    >
+                      {n.body}
+                    </td>
+                    <td
+                      className="px-3 py-2"
+                      style={{ color: "oklch(0.50 0.10 145)" }}
+                    >
+                      {n.targetPlayerName ?? "All"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

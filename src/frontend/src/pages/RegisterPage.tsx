@@ -3,9 +3,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useParams } from "@tanstack/react-router";
 import { Loader2, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { TournamentStatus } from "../backend.d";
+import NotificationPermissionBanner from "../components/NotificationPermissionBanner";
+import { useNotifications } from "../hooks/useNotifications";
 import {
   useAddPlayer,
   useGetAllTournamentsPublic,
@@ -506,6 +508,24 @@ function NameReveal({
   showParticles: boolean;
 }) {
   const [visible, setVisible] = useState(false);
+  const savedRef = useRef(false);
+
+  // Store registered player name for notification polling
+  useEffect(() => {
+    if (!savedRef.current && name && tournamentId) {
+      savedRef.current = true;
+      try {
+        localStorage.setItem(`registered_player_${tournamentId}`, name);
+      } catch {
+        // ignore
+      }
+    }
+  }, [name, tournamentId]);
+
+  const { permissionStatus, requestPermission } = useNotifications(
+    tournamentId,
+    name,
+  );
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 50);
@@ -621,6 +641,12 @@ function NameReveal({
           ⚔ Watch the Bracket →
         </a>
       </div>
+
+      {/* Notification permission banner */}
+      <NotificationPermissionBanner
+        permissionStatus={permissionStatus}
+        onEnable={requestPermission}
+      />
     </div>
   );
 }

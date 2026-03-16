@@ -60,9 +60,25 @@ export const Round = IDL.Record({
   'roundNumber' : IDL.Nat,
   'tournamentId' : IDL.Text,
 });
+export const NotificationView = IDL.Record({
+  'id' : IDL.Text,
+  'title' : IDL.Text,
+  'notifType' : IDL.Text,
+  'body' : IDL.Text,
+  'createdAt' : IDL.Int,
+  'targetPlayerName' : IDL.Opt(IDL.Text),
+  'tournamentId' : IDL.Text,
+  'readByPlayerNames' : IDL.Vec(IDL.Text),
+});
+export const NotificationSettings = IDL.Record({
+  'nextRoundEnabled' : IDL.Bool,
+  'tournamentStartEnabled' : IDL.Bool,
+  'matchResultEnabled' : IDL.Bool,
+});
 
 export const idlService = IDL.Service({
   'addPlayer' : IDL.Func([IDL.Text, IDL.Text], [Player], []),
+  'broadcastNotification' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'changePlayerName' : IDL.Func([IDL.Text, IDL.Text], [Player], []),
   'changePlayerRating' : IDL.Func([IDL.Text, IDL.Nat], [Player], []),
   'completeTournament' : IDL.Func([IDL.Text, IDL.Text], [Tournament], []),
@@ -73,13 +89,38 @@ export const idlService = IDL.Service({
   'disqualifyPlayer' : IDL.Func([IDL.Text], [], []),
   'getAllTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
   'getCurrentRound' : IDL.Func([IDL.Text], [IDL.Opt(Round)], ['query']),
+  'getNotificationLog' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(NotificationView)],
+      ['query'],
+    ),
+  'getNotificationSettings' : IDL.Func(
+      [IDL.Text],
+      [NotificationSettings],
+      ['query'],
+    ),
+  'getNotificationsForPlayer' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Vec(NotificationView)],
+      ['query'],
+    ),
   'getPlayersByTournament' : IDL.Func([IDL.Text], [IDL.Vec(Player)], ['query']),
   'getRoundsByTournament' : IDL.Func([IDL.Text], [IDL.Vec(Round)], ['query']),
   'getTournament' : IDL.Func([IDL.Text], [Tournament], ['query']),
+  'markNotificationsRead' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Vec(IDL.Text)],
+      [],
+      [],
+    ),
   'recordMatchResult' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Match], []),
   'reshuffleCurrentRound' : IDL.Func([IDL.Text], [Round], []),
   'startTournament' : IDL.Func([IDL.Text], [Tournament], []),
   'undoMatchResult' : IDL.Func([IDL.Text], [Match], []),
+  'updateNotificationSettings' : IDL.Func(
+      [IDL.Text, IDL.Bool, IDL.Bool, IDL.Bool],
+      [],
+      [],
+    ),
   'updateTournamentStatus' : IDL.Func(
       [IDL.Text, TournamentStatus],
       [Tournament],
@@ -142,9 +183,25 @@ export const idlFactory = ({ IDL }) => {
     'roundNumber' : IDL.Nat,
     'tournamentId' : IDL.Text,
   });
+  const NotificationView = IDL.Record({
+    'id' : IDL.Text,
+    'title' : IDL.Text,
+    'notifType' : IDL.Text,
+    'body' : IDL.Text,
+    'createdAt' : IDL.Int,
+    'targetPlayerName' : IDL.Opt(IDL.Text),
+    'tournamentId' : IDL.Text,
+    'readByPlayerNames' : IDL.Vec(IDL.Text),
+  });
+  const NotificationSettings = IDL.Record({
+    'nextRoundEnabled' : IDL.Bool,
+    'tournamentStartEnabled' : IDL.Bool,
+    'matchResultEnabled' : IDL.Bool,
+  });
   
   return IDL.Service({
     'addPlayer' : IDL.Func([IDL.Text, IDL.Text], [Player], []),
+    'broadcastNotification' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'changePlayerName' : IDL.Func([IDL.Text, IDL.Text], [Player], []),
     'changePlayerRating' : IDL.Func([IDL.Text, IDL.Nat], [Player], []),
     'completeTournament' : IDL.Func([IDL.Text, IDL.Text], [Tournament], []),
@@ -159,6 +216,21 @@ export const idlFactory = ({ IDL }) => {
     'disqualifyPlayer' : IDL.Func([IDL.Text], [], []),
     'getAllTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
     'getCurrentRound' : IDL.Func([IDL.Text], [IDL.Opt(Round)], ['query']),
+    'getNotificationLog' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(NotificationView)],
+        ['query'],
+      ),
+    'getNotificationSettings' : IDL.Func(
+        [IDL.Text],
+        [NotificationSettings],
+        ['query'],
+      ),
+    'getNotificationsForPlayer' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Vec(NotificationView)],
+        ['query'],
+      ),
     'getPlayersByTournament' : IDL.Func(
         [IDL.Text],
         [IDL.Vec(Player)],
@@ -166,10 +238,20 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getRoundsByTournament' : IDL.Func([IDL.Text], [IDL.Vec(Round)], ['query']),
     'getTournament' : IDL.Func([IDL.Text], [Tournament], ['query']),
+    'markNotificationsRead' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Vec(IDL.Text)],
+        [],
+        [],
+      ),
     'recordMatchResult' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Match], []),
     'reshuffleCurrentRound' : IDL.Func([IDL.Text], [Round], []),
     'startTournament' : IDL.Func([IDL.Text], [Tournament], []),
     'undoMatchResult' : IDL.Func([IDL.Text], [Match], []),
+    'updateNotificationSettings' : IDL.Func(
+        [IDL.Text, IDL.Bool, IDL.Bool, IDL.Bool],
+        [],
+        [],
+      ),
     'updateTournamentStatus' : IDL.Func(
         [IDL.Text, TournamentStatus],
         [Tournament],

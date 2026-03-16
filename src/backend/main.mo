@@ -1,4 +1,3 @@
-import Migration "migration";
 import Map "mo:core/Map";
 import Iter "mo:core/Iter";
 import Text "mo:core/Text";
@@ -9,6 +8,8 @@ import VarArray "mo:core/VarArray";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
 import Int "mo:core/Int";
+import List "mo:core/List";
+import Migration "migration";
 
 (with migration = Migration.run)
 actor {
@@ -17,6 +18,34 @@ actor {
   type PlayerStatus = { #active; #oneLoss; #eliminated };
 
   type MatchResult = { #pending; #completed };
+
+  type Notification = {
+    id : Text;
+    tournamentId : Text;
+    targetPlayerName : ?Text;
+    title : Text;
+    body : Text;
+    notifType : Text;
+    createdAt : Int;
+    readByPlayerNames : List.List<Text>;
+  };
+
+  type NotificationView = {
+    id : Text;
+    tournamentId : Text;
+    targetPlayerName : ?Text;
+    title : Text;
+    body : Text;
+    notifType : Text;
+    createdAt : Int;
+    readByPlayerNames : [Text];
+  };
+
+  type NotificationSettings = {
+    matchResultEnabled : Bool;
+    nextRoundEnabled : Bool;
+    tournamentStartEnabled : Bool;
+  };
 
   type Tournament = {
     id : Text;
@@ -34,9 +63,9 @@ actor {
     losses : Nat;
     eliminated : Bool;
     status : PlayerStatus;
-    wins : Nat; // New field
-    disqualified : Bool; // New field
-    rating : Nat; // New field
+    wins : Nat;
+    disqualified : Bool;
+    rating : Nat;
   };
 
   type Round = {
@@ -114,8 +143,9 @@ actor {
 
     var i = players.size() - 1;
     while (i > 0) {
+      // Use safe modulo to ensure valid index range
       seed := (seed * 1664525 + 1013904223) % 4294967296;
-      let randomIndex = Int.abs(seed) % (i + 1);
+      let randomIndex = seed % (i + 1);
       let temp = buf[i];
       buf[i] := buf[randomIndex];
       buf[randomIndex] := temp;
@@ -260,9 +290,9 @@ actor {
       losses = 0;
       eliminated = false;
       status = #active;
-      wins = 0; // Initialize new field
-      disqualified = false; // Initialize new field
-      rating = 1200; // Initialize new field
+      wins = 0;
+      disqualified = false;
+      rating = 1200;
     };
     players.add(id, player);
     player;
@@ -304,6 +334,10 @@ actor {
       )
     );
     ignore buildRound(tournamentId, 1, shuffledPlayers);
+
+    // Send tournament start notification
+    sendTournamentStartNotification(tournamentId, tournament.name);
+
     updatedTournament;
   };
 
@@ -332,7 +366,12 @@ actor {
     };
 
     let shuffledPlayers = shufflePlayers(activePlayers);
-    buildRound(tournamentId, maxRound + 1, shuffledPlayers);
+    let newRound = buildRound(tournamentId, maxRound + 1, shuffledPlayers);
+
+    // Send next round notifications
+    // sendNextRoundNotifications(tournamentId, newRound.roundNumber, newRound.matches);
+
+    newRound;
   };
 
   public query ({ caller }) func getRoundsByTournament(tournamentId : Text) : async [Round] {
@@ -404,15 +443,11 @@ actor {
         eliminated = isEliminated;
         status = updatedStatus;
         wins = updatedWins;
-        rating = player.rating; // Preserve current rating
-        disqualified = player.disqualified; // Preserve disqualified status
+        rating = player.rating;
+        disqualified = player.disqualified;
       };
       players.add(id, updatedPlayer);
     };
-
-    let allRoundMatches = matches.values().toArray().filter(
-      func(m) { m.tournamentId == match.tournamentId and m.roundNumber == match.roundNumber }
-    );
 
     for ((roundId, round) in rounds.entries()) {
       if (round.tournamentId == match.tournamentId and round.roundNumber == match.roundNumber) {
@@ -444,6 +479,9 @@ actor {
         rounds.add(roundId, updatedRound);
       };
     };
+
+    // Send match result notifications
+    sendMatchResultNotifications(match.tournamentId, winnerId, loserId);
 
     updatedMatch;
   };
@@ -479,9 +517,9 @@ actor {
           losses = updatedLosses;
           eliminated = false;
           status = if (updatedLosses == 0) { #active } else { #oneLoss };
-          wins = loser.wins; // Preserve current wins
-          rating = loser.rating; // Preserve current rating
-          disqualified = loser.disqualified; // Preserve disqualified status
+          wins = loser.wins;
+          rating = loser.rating;
+          disqualified = loser.disqualified;
         };
         players.add(loser.id, updatedPlayer);
 
@@ -807,8 +845,186 @@ actor {
     };
   };
 
-  stable var tournaments : Map.Map<Text, Tournament> = Map.empty<Text, Tournament>();
-  stable var players : Map.Map<Text, Player> = Map.empty<Text, Player>();
-  stable var rounds : Map.Map<Text, Round> = Map.empty<Text, Round>();
-  stable var matches : Map.Map<Text, Match> = Map.empty<Text, Match>();
+  public query ({ caller }) func getNotificationsForPlayer(tournamentId : Text, playerName : Text) : async [NotificationView] {
+    let filteredNotifs = notifications.values().toArray().filter(
+      func(n) {
+        n.tournamentId == tournamentId and (
+          switch (n.targetPlayerName) {
+            case (?target) { target == playerName };
+            case (null) { true };
+          }
+        )
+      }
+    );
+
+    let unreadNotifs = filteredNotifs.filter(
+      func(n) { not hasPlayerRead(n, playerName) }
+    );
+
+    unreadNotifs.map(
+      func(notif) {
+        {
+          id = notif.id;
+          title = notif.title;
+          createdAt = notif.createdAt;
+          tournamentId = notif.tournamentId;
+          notifType = notif.notifType;
+          body = notif.body;
+          targetPlayerName = notif.targetPlayerName;
+          readByPlayerNames = notif.readByPlayerNames.toArray();
+        };
+      }
+    );
+  };
+
+  public shared ({ caller }) func markNotificationsRead(tournamentId : Text, playerName : Text, notifIds : [Text]) : async () {
+    let filteredNotifs = notifications.values().toArray().filter(
+      func(n) {
+        n.tournamentId == tournamentId and
+        notifIds.any(func(id) { id == n.id })
+      }
+    );
+
+    for (notif in filteredNotifs.values()) {
+      let updatedNotif = {
+        id = notif.id;
+        tournamentId = notif.tournamentId;
+        targetPlayerName = notif.targetPlayerName;
+        title = notif.title;
+        body = notif.body;
+        notifType = notif.notifType;
+        createdAt = notif.createdAt;
+        readByPlayerNames = notif.readByPlayerNames.clone();
+      };
+      updatedNotif.readByPlayerNames.add(playerName);
+      notifications.add(notif.id, updatedNotif);
+    };
+  };
+
+  public query ({ caller }) func getNotificationLog(tournamentId : Text) : async [NotificationView] {
+    notifications.values().toArray().filter(
+      func(n) { n.tournamentId == tournamentId }
+    ).map(
+      func(notif) {
+        {
+          id = notif.id;
+          title = notif.title;
+          createdAt = notif.createdAt;
+          tournamentId = notif.tournamentId;
+          notifType = notif.notifType;
+          body = notif.body;
+          targetPlayerName = notif.targetPlayerName;
+          readByPlayerNames = notif.readByPlayerNames.toArray();
+        };
+      }
+    );
+  };
+
+  public query ({ caller }) func getNotificationSettings(tournamentId : Text) : async NotificationSettings {
+    switch (notificationSettings.get(tournamentId)) {
+      case (null) { Runtime.trap("Notification settings not found") };
+      case (?settings) { settings };
+    };
+  };
+
+  public shared ({ caller }) func updateNotificationSettings(
+    tournamentId : Text,
+    matchResultEnabled : Bool,
+    nextRoundEnabled : Bool,
+    tournamentStartEnabled : Bool,
+  ) : async () {
+    switch (notificationSettings.get(tournamentId)) {
+      case (null) { Runtime.trap("Notification settings not found") };
+      case (?settings) {
+        let updatedSettings = {
+          matchResultEnabled;
+          nextRoundEnabled;
+          tournamentStartEnabled;
+        };
+        notificationSettings.add(tournamentId, updatedSettings);
+      };
+    };
+  };
+
+  public shared ({ caller }) func broadcastNotification(tournamentId : Text, title : Text, body : Text) : async () {
+    let notification : Notification = {
+      id = Time.now().toText();
+      tournamentId;
+      targetPlayerName = null;
+      title;
+      body;
+      notifType = "broadcast";
+      createdAt = Time.now();
+      readByPlayerNames = List.empty<Text>();
+    };
+    notifications.add(notification.id, notification);
+  };
+
+  func sendTournamentStartNotification(tournamentId : Text, tournamentName : Text) {
+    switch (notificationSettings.get(tournamentId)) {
+      case (null) { () };
+      case (?settings) {
+        if (settings.tournamentStartEnabled) {
+          let notif : Notification = {
+            id = Time.now().toText();
+            tournamentId;
+            targetPlayerName = null;
+            title = "Tournament Starting!";
+            body = "Round 1 for " # tournamentName # " has begun!";
+            notifType = "start";
+            createdAt = Time.now();
+            readByPlayerNames = List.empty<Text>();
+          };
+          notifications.add(notif.id, notif);
+        };
+      };
+    };
+  };
+
+  func sendMatchResultNotifications(tournamentId : Text, winnerId : Text, loserId : Text) {
+    let winnerName = switch (players.get(winnerId)) {
+      case (?p) { p.name };
+      case (null) { "unknown" };
+    };
+
+    let loserName = switch (players.get(loserId)) {
+      case (?p) { p.name };
+      case (null) { "unknown" };
+    };
+
+    let winnerNotif : Notification = {
+      id = Time.now().toText();
+      tournamentId;
+      targetPlayerName = ?winnerName;
+      title = "Match Won!";
+      body = "Congrats " # winnerName # ", you won your match against " # loserName # "!";
+      notifType = "win";
+      createdAt = Time.now();
+      readByPlayerNames = List.empty<Text>();
+    };
+    notifications.add(winnerNotif.id, winnerNotif);
+
+    let loserNotif : Notification = {
+      id = Time.now().toText();
+      tournamentId;
+      targetPlayerName = ?loserName;
+      title = "Match Lost";
+      body = "Sorry " # loserName # ", you lost your match against " # winnerName # ".";
+      notifType = "loss";
+      createdAt = Time.now();
+      readByPlayerNames = List.empty<Text>();
+    };
+    notifications.add(loserNotif.id, loserNotif);
+  };
+
+  func hasPlayerRead(notif : Notification, playerName : Text) : Bool {
+    notif.readByPlayerNames.any(func(name) { name == playerName });
+  };
+
+  var tournaments = Map.empty<Text, Tournament>();
+  var players = Map.empty<Text, Player>();
+  var rounds = Map.empty<Text, Round>();
+  var matches = Map.empty<Text, Match>();
+  var notifications = Map.empty<Text, Notification>();
+  var notificationSettings = Map.empty<Text, NotificationSettings>();
 };

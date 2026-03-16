@@ -25,6 +25,21 @@ export interface Match {
 }
 export type MatchResult = { 'pending' : null } |
   { 'completed' : null };
+export interface NotificationSettings {
+  'nextRoundEnabled' : boolean,
+  'tournamentStartEnabled' : boolean,
+  'matchResultEnabled' : boolean,
+}
+export interface NotificationView {
+  'id' : string,
+  'title' : string,
+  'notifType' : string,
+  'body' : string,
+  'createdAt' : bigint,
+  'targetPlayerName' : [] | [string],
+  'tournamentId' : string,
+  'readByPlayerNames' : Array<string>,
+}
 export interface Player {
   'id' : string,
   'status' : PlayerStatus,
@@ -58,6 +73,7 @@ export type TournamentStatus = { 'active' : null } |
   { 'completed' : null };
 export interface _SERVICE {
   'addPlayer' : ActorMethod<[string, string], Player>,
+  'broadcastNotification' : ActorMethod<[string, string, string], undefined>,
   'changePlayerName' : ActorMethod<[string, string], Player>,
   'changePlayerRating' : ActorMethod<[string, bigint], Player>,
   'completeTournament' : ActorMethod<[string, string], Tournament>,
@@ -68,13 +84,27 @@ export interface _SERVICE {
   'disqualifyPlayer' : ActorMethod<[string], undefined>,
   'getAllTournaments' : ActorMethod<[], Array<Tournament>>,
   'getCurrentRound' : ActorMethod<[string], [] | [Round]>,
+  'getNotificationLog' : ActorMethod<[string], Array<NotificationView>>,
+  'getNotificationSettings' : ActorMethod<[string], NotificationSettings>,
+  'getNotificationsForPlayer' : ActorMethod<
+    [string, string],
+    Array<NotificationView>
+  >,
   'getPlayersByTournament' : ActorMethod<[string], Array<Player>>,
   'getRoundsByTournament' : ActorMethod<[string], Array<Round>>,
   'getTournament' : ActorMethod<[string], Tournament>,
+  'markNotificationsRead' : ActorMethod<
+    [string, string, Array<string>],
+    undefined
+  >,
   'recordMatchResult' : ActorMethod<[string, string, string], Match>,
   'reshuffleCurrentRound' : ActorMethod<[string], Round>,
   'startTournament' : ActorMethod<[string], Tournament>,
   'undoMatchResult' : ActorMethod<[string], Match>,
+  'updateNotificationSettings' : ActorMethod<
+    [string, boolean, boolean, boolean],
+    undefined
+  >,
   'updateTournamentStatus' : ActorMethod<
     [string, TournamentStatus],
     Tournament

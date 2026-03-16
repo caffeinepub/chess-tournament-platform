@@ -636,3 +636,85 @@ export function useAddPlayerAdmin() {
     },
   });
 }
+
+// ─── Notification Queries ─────────────────────────────────────────────────────
+
+export function useGetNotificationLog(tournamentId: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["notif_log", tournamentId],
+    queryFn: async () => {
+      if (!actor) return [];
+      return withCanisterRetry(() => actor.getNotificationLog(tournamentId));
+    },
+    enabled: !!actor && !isFetching && !!tournamentId,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useGetNotificationSettings(tournamentId: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["notif_settings", tournamentId],
+    queryFn: async () => {
+      if (!actor) return null;
+      return withCanisterRetry(() =>
+        actor.getNotificationSettings(tournamentId),
+      );
+    },
+    enabled: !!actor && !isFetching && !!tournamentId,
+  });
+}
+
+export function useUpdateNotificationSettings() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation<
+    void,
+    Error,
+    {
+      tournamentId: string;
+      matchResultEnabled: boolean;
+      nextRoundEnabled: boolean;
+      tournamentStartEnabled: boolean;
+    }
+  >({
+    mutationFn: async ({
+      tournamentId,
+      matchResultEnabled,
+      nextRoundEnabled,
+      tournamentStartEnabled,
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return withCanisterRetry(() =>
+        actor.updateNotificationSettings(
+          tournamentId,
+          matchResultEnabled,
+          nextRoundEnabled,
+          tournamentStartEnabled,
+        ),
+      );
+    },
+    onSuccess: (_data, { tournamentId }) => {
+      queryClient.invalidateQueries({
+        queryKey: ["notif_settings", tournamentId],
+      });
+    },
+  });
+}
+
+export function useBroadcastNotification() {
+  const { actor } = useActor();
+  return useMutation<
+    void,
+    Error,
+    { tournamentId: string; title: string; body: string }
+  >({
+    mutationFn: async ({ tournamentId, title, body }) => {
+      if (!actor) throw new Error("Not connected");
+      return withCanisterRetry(() =>
+        actor.broadcastNotification(tournamentId, title, body),
+      );
+    },
+  });
+}

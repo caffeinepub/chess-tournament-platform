@@ -100,6 +100,11 @@ export interface Player {
     disqualified: boolean;
     tournamentId: string;
 }
+export interface NotificationSettings {
+    nextRoundEnabled: boolean;
+    tournamentStartEnabled: boolean;
+    matchResultEnabled: boolean;
+}
 export interface Tournament {
     id: string;
     status: TournamentStatus;
@@ -127,6 +132,16 @@ export interface Match {
     tournamentId: string;
     player1Name: string;
 }
+export interface NotificationView {
+    id: string;
+    title: string;
+    notifType: string;
+    body: string;
+    createdAt: bigint;
+    targetPlayerName?: string;
+    tournamentId: string;
+    readByPlayerNames: Array<string>;
+}
 export enum MatchResult {
     pending = "pending",
     completed = "completed"
@@ -143,6 +158,7 @@ export enum TournamentStatus {
 }
 export interface backendInterface {
     addPlayer(tournamentId: string, name: string): Promise<Player>;
+    broadcastNotification(tournamentId: string, title: string, body: string): Promise<void>;
     changePlayerName(playerId: string, newName: string): Promise<Player>;
     changePlayerRating(playerId: string, rating: bigint): Promise<Player>;
     completeTournament(tournamentId: string, winner: string): Promise<Tournament>;
@@ -153,16 +169,21 @@ export interface backendInterface {
     disqualifyPlayer(playerId: string): Promise<void>;
     getAllTournaments(): Promise<Array<Tournament>>;
     getCurrentRound(tournamentId: string): Promise<Round | null>;
+    getNotificationLog(tournamentId: string): Promise<Array<NotificationView>>;
+    getNotificationSettings(tournamentId: string): Promise<NotificationSettings>;
+    getNotificationsForPlayer(tournamentId: string, playerName: string): Promise<Array<NotificationView>>;
     getPlayersByTournament(tournamentId: string): Promise<Array<Player>>;
     getRoundsByTournament(tournamentId: string): Promise<Array<Round>>;
     getTournament(id: string): Promise<Tournament>;
+    markNotificationsRead(tournamentId: string, playerName: string, notifIds: Array<string>): Promise<void>;
     recordMatchResult(matchId: string, winnerId: string, loserId: string): Promise<Match>;
     reshuffleCurrentRound(tournamentId: string): Promise<Round>;
     startTournament(tournamentId: string): Promise<Tournament>;
     undoMatchResult(matchId: string): Promise<Match>;
+    updateNotificationSettings(tournamentId: string, matchResultEnabled: boolean, nextRoundEnabled: boolean, tournamentStartEnabled: boolean): Promise<void>;
     updateTournamentStatus(tournamentId: string, status: TournamentStatus): Promise<Tournament>;
 }
-import type { Match as _Match, MatchResult as _MatchResult, Player as _Player, PlayerStatus as _PlayerStatus, Round as _Round, Tournament as _Tournament, TournamentStatus as _TournamentStatus } from "./declarations/backend.did.d.ts";
+import type { Match as _Match, MatchResult as _MatchResult, NotificationView as _NotificationView, Player as _Player, PlayerStatus as _PlayerStatus, Round as _Round, Tournament as _Tournament, TournamentStatus as _TournamentStatus } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async addPlayer(arg0: string, arg1: string): Promise<Player> {
@@ -177,6 +198,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.addPlayer(arg0, arg1);
             return from_candid_Player_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async broadcastNotification(arg0: string, arg1: string, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.broadcastNotification(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.broadcastNotification(arg0, arg1, arg2);
+            return result;
         }
     }
     async changePlayerName(arg0: string, arg1: string): Promise<Player> {
@@ -319,32 +354,74 @@ export class Backend implements backendInterface {
             return from_candid_opt_n19(this._uploadFile, this._downloadFile, result);
         }
     }
-    async getPlayersByTournament(arg0: string): Promise<Array<Player>> {
+    async getNotificationLog(arg0: string): Promise<Array<NotificationView>> {
         if (this.processError) {
             try {
-                const result = await this.actor.getPlayersByTournament(arg0);
+                const result = await this.actor.getNotificationLog(arg0);
                 return from_candid_vec_n20(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getPlayersByTournament(arg0);
+            const result = await this.actor.getNotificationLog(arg0);
             return from_candid_vec_n20(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getNotificationSettings(arg0: string): Promise<NotificationSettings> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getNotificationSettings(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getNotificationSettings(arg0);
+            return result;
+        }
+    }
+    async getNotificationsForPlayer(arg0: string, arg1: string): Promise<Array<NotificationView>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getNotificationsForPlayer(arg0, arg1);
+                return from_candid_vec_n20(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getNotificationsForPlayer(arg0, arg1);
+            return from_candid_vec_n20(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getPlayersByTournament(arg0: string): Promise<Array<Player>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPlayersByTournament(arg0);
+                return from_candid_vec_n23(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPlayersByTournament(arg0);
+            return from_candid_vec_n23(this._uploadFile, this._downloadFile, result);
         }
     }
     async getRoundsByTournament(arg0: string): Promise<Array<Round>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getRoundsByTournament(arg0);
-                return from_candid_vec_n21(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n24(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getRoundsByTournament(arg0);
-            return from_candid_vec_n21(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n24(this._uploadFile, this._downloadFile, result);
         }
     }
     async getTournament(arg0: string): Promise<Tournament> {
@@ -359,6 +436,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getTournament(arg0);
             return from_candid_Tournament_n5(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async markNotificationsRead(arg0: string, arg1: string, arg2: Array<string>): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.markNotificationsRead(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.markNotificationsRead(arg0, arg1, arg2);
+            return result;
         }
     }
     async recordMatchResult(arg0: string, arg1: string, arg2: string): Promise<Match> {
@@ -417,17 +508,31 @@ export class Backend implements backendInterface {
             return from_candid_Match_n13(this._uploadFile, this._downloadFile, result);
         }
     }
+    async updateNotificationSettings(arg0: string, arg1: boolean, arg2: boolean, arg3: boolean): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateNotificationSettings(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateNotificationSettings(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
     async updateTournamentStatus(arg0: string, arg1: TournamentStatus): Promise<Tournament> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateTournamentStatus(arg0, to_candid_TournamentStatus_n22(this._uploadFile, this._downloadFile, arg1));
+                const result = await this.actor.updateTournamentStatus(arg0, to_candid_TournamentStatus_n25(this._uploadFile, this._downloadFile, arg1));
                 return from_candid_Tournament_n5(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateTournamentStatus(arg0, to_candid_TournamentStatus_n22(this._uploadFile, this._downloadFile, arg1));
+            const result = await this.actor.updateTournamentStatus(arg0, to_candid_TournamentStatus_n25(this._uploadFile, this._downloadFile, arg1));
             return from_candid_Tournament_n5(this._uploadFile, this._downloadFile, result);
         }
     }
@@ -437,6 +542,9 @@ function from_candid_MatchResult_n15(_uploadFile: (file: ExternalBlob) => Promis
 }
 function from_candid_Match_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Match): Match {
     return from_candid_record_n14(_uploadFile, _downloadFile, value);
+}
+function from_candid_NotificationView_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _NotificationView): NotificationView {
+    return from_candid_record_n22(_uploadFile, _downloadFile, value);
 }
 function from_candid_PlayerStatus_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _PlayerStatus): PlayerStatus {
     return from_candid_variant_n4(_uploadFile, _downloadFile, value);
@@ -549,6 +657,36 @@ function from_candid_record_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint
         tournamentId: value.tournamentId
     };
 }
+function from_candid_record_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    id: string;
+    title: string;
+    notifType: string;
+    body: string;
+    createdAt: bigint;
+    targetPlayerName: [] | [string];
+    tournamentId: string;
+    readByPlayerNames: Array<string>;
+}): {
+    id: string;
+    title: string;
+    notifType: string;
+    body: string;
+    createdAt: bigint;
+    targetPlayerName?: string;
+    tournamentId: string;
+    readByPlayerNames: Array<string>;
+} {
+    return {
+        id: value.id,
+        title: value.title,
+        notifType: value.notifType,
+        body: value.body,
+        createdAt: value.createdAt,
+        targetPlayerName: record_opt_to_undefined(from_candid_opt_n9(_uploadFile, _downloadFile, value.targetPlayerName)),
+        tournamentId: value.tournamentId,
+        readByPlayerNames: value.readByPlayerNames
+    };
+}
 function from_candid_record_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: string;
     status: _TournamentStatus;
@@ -604,19 +742,22 @@ function from_candid_vec_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
 function from_candid_vec_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Tournament>): Array<Tournament> {
     return value.map((x)=>from_candid_Tournament_n5(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Player>): Array<Player> {
+function from_candid_vec_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_NotificationView>): Array<NotificationView> {
+    return value.map((x)=>from_candid_NotificationView_n21(_uploadFile, _downloadFile, x));
+}
+function from_candid_vec_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Player>): Array<Player> {
     return value.map((x)=>from_candid_Player_n1(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Round>): Array<Round> {
+function from_candid_vec_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Round>): Array<Round> {
     return value.map((x)=>from_candid_Round_n10(_uploadFile, _downloadFile, x));
 }
-function to_candid_TournamentStatus_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: TournamentStatus): _TournamentStatus {
-    return to_candid_variant_n23(_uploadFile, _downloadFile, value);
+function to_candid_TournamentStatus_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: TournamentStatus): _TournamentStatus {
+    return to_candid_variant_n26(_uploadFile, _downloadFile, value);
 }
 function to_candid_opt_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: bigint | null): [] | [bigint] {
     return value === null ? candid_none() : candid_some(value);
 }
-function to_candid_variant_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: TournamentStatus): {
+function to_candid_variant_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: TournamentStatus): {
     active: null;
 } | {
     registration: null;
