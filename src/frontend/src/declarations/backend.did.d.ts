@@ -29,8 +29,11 @@ export interface Player {
   'id' : string,
   'status' : PlayerStatus,
   'name' : string,
+  'wins' : bigint,
   'losses' : bigint,
   'eliminated' : boolean,
+  'rating' : bigint,
+  'disqualified' : boolean,
   'tournamentId' : string,
 }
 export type PlayerStatus = { 'active' : null } |
@@ -55,11 +58,14 @@ export type TournamentStatus = { 'active' : null } |
   { 'completed' : null };
 export interface _SERVICE {
   'addPlayer' : ActorMethod<[string, string], Player>,
+  'changePlayerName' : ActorMethod<[string, string], Player>,
+  'changePlayerRating' : ActorMethod<[string, bigint], Player>,
   'completeTournament' : ActorMethod<[string, string], Tournament>,
   'createNextRound' : ActorMethod<[string], Round>,
   'createTournament' : ActorMethod<[string, [] | [bigint]], Tournament>,
-  'deleteTournament' : ActorMethod<[string], undefined>,
   'deletePlayer' : ActorMethod<[string], undefined>,
+  'deleteTournament' : ActorMethod<[string], undefined>,
+  'disqualifyPlayer' : ActorMethod<[string], undefined>,
   'getAllTournaments' : ActorMethod<[], Array<Tournament>>,
   'getCurrentRound' : ActorMethod<[string], [] | [Round]>,
   'getPlayersByTournament' : ActorMethod<[string], Array<Player>>,

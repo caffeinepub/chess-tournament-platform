@@ -93,8 +93,11 @@ export interface Player {
     id: string;
     status: PlayerStatus;
     name: string;
+    wins: bigint;
     losses: bigint;
     eliminated: boolean;
+    rating: bigint;
+    disqualified: boolean;
     tournamentId: string;
 }
 export interface Tournament {
@@ -140,11 +143,14 @@ export enum TournamentStatus {
 }
 export interface backendInterface {
     addPlayer(tournamentId: string, name: string): Promise<Player>;
+    changePlayerName(playerId: string, newName: string): Promise<Player>;
+    changePlayerRating(playerId: string, rating: bigint): Promise<Player>;
     completeTournament(tournamentId: string, winner: string): Promise<Tournament>;
     createNextRound(tournamentId: string): Promise<Round>;
     createTournament(name: string, eliminationCount: bigint | null): Promise<Tournament>;
-    deleteTournament(tournamentId: string): Promise<void>;
     deletePlayer(playerId: string): Promise<void>;
+    deleteTournament(tournamentId: string): Promise<void>;
+    disqualifyPlayer(playerId: string): Promise<void>;
     getAllTournaments(): Promise<Array<Tournament>>;
     getCurrentRound(tournamentId: string): Promise<Round | null>;
     getPlayersByTournament(tournamentId: string): Promise<Array<Player>>;
@@ -170,6 +176,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addPlayer(arg0, arg1);
+            return from_candid_Player_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async changePlayerName(arg0: string, arg1: string): Promise<Player> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.changePlayerName(arg0, arg1);
+                return from_candid_Player_n1(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.changePlayerName(arg0, arg1);
+            return from_candid_Player_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async changePlayerRating(arg0: string, arg1: bigint): Promise<Player> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.changePlayerRating(arg0, arg1);
+                return from_candid_Player_n1(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.changePlayerRating(arg0, arg1);
             return from_candid_Player_n1(this._uploadFile, this._downloadFile, result);
         }
     }
@@ -240,6 +274,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteTournament(arg0);
+            return result;
+        }
+    }
+    async disqualifyPlayer(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.disqualifyPlayer(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.disqualifyPlayer(arg0);
             return result;
         }
     }
@@ -472,23 +520,32 @@ function from_candid_record_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint
     id: string;
     status: _PlayerStatus;
     name: string;
+    wins: bigint;
     losses: bigint;
     eliminated: boolean;
+    rating: bigint;
+    disqualified: boolean;
     tournamentId: string;
 }): {
     id: string;
     status: PlayerStatus;
     name: string;
+    wins: bigint;
     losses: bigint;
     eliminated: boolean;
+    rating: bigint;
+    disqualified: boolean;
     tournamentId: string;
 } {
     return {
         id: value.id,
         status: from_candid_PlayerStatus_n3(_uploadFile, _downloadFile, value.status),
         name: value.name,
+        wins: value.wins,
         losses: value.losses,
         eliminated: value.eliminated,
+        rating: value.rating,
+        disqualified: value.disqualified,
         tournamentId: value.tournamentId
     };
 }

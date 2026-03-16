@@ -1,36 +1,38 @@
 # Chess Tournament Platform
 
 ## Current State
+Full-stack chess tournament app with double-elimination brackets, admin panel, public registration, live bracket viewer. Backend uses Motoko with stable storage. Frontend uses React/TypeScript with React Query.
 
-- Admin panel lets admins record match results by clicking "Player X Wins"
-- Once a result is recorded (`recordMatchResult`), the match is marked `#completed` and the loser's loss count is incremented
-- There is no way to undo a result after it has been recorded
-- The `reshuffleCurrentRound` call is blocked once any match in the round has a completed result
+Known bugs:
+- `createTournament` mutation passes `eliminationCount` as raw bigint, but Candid interface expects `[] | [bigint]` (Motoko optional) -- causes a type error on submission
+- Player type has no `wins`, `rating`, or `disqualified` fields
+- No player management functions beyond add/delete
+- No statistics tracking
 
 ## Requested Changes (Diff)
 
 ### Add
-- Backend: `undoMatchResult(matchId)` — resets a completed match back to `#pending`, reverses the loser's loss/status changes, and marks the round as incomplete again
-- Frontend: An "Undo" button on each completed (non-bye) match card in admin view, allowing the admin to revert the result and re-select the correct winner
+- Backend: `wins: Nat`, `rating: Nat`, `disqualified: Bool` fields to Player
+- Backend: `changePlayerName(playerId, newName)` function
+- Backend: `changePlayerRating(playerId, rating)` function  
+- Backend: `disqualifyPlayer(playerId)` function (marks eliminated + disqualified)
+- Backend: increment `wins` on winner when `recordMatchResult` is called
+- Frontend: Player Management panel in Admin with: Add Player, Remove Player, Disqualify Player, Change Name, Change Rating
+- Frontend: Player Statistics section showing: Wins, Losses, Win Rate, Buchholz Score, Opponent Score per player
+- Frontend: new hooks `useChangePlayerName`, `useChangePlayerRating`, `useDisqualifyPlayer`
 
 ### Modify
-- `MatchCard.tsx`: In the completed state for admin mode, show an "Undo" button alongside the winner label
-- `AdminPage.tsx`: Pass an `onUndo` callback into `MatchCard` and wire it to the new backend call; refresh queries after undo
-- `useQueries.ts`: Add `useUndoMatchResult` mutation hook
+- Fix `useCreateTournament` hook: wrap `eliminationCount` as `[eliminationCount]` (Motoko optional array)
+- Fix `handleCreate` in AdminPage to pass `eliminationCount` correctly
+- `recordMatchResult` backend: increment winner's `wins` counter
+- All Player instantiation code in backend to include new fields with defaults (wins=0, rating=1200, disqualified=false)
 
 ### Remove
 - Nothing removed
 
 ## Implementation Plan
-
-1. **Backend**: Add `undoMatchResult(matchId: Text) : async Match`
-   - Trap if match is not completed or is a bye match
-   - Revert winner/loser player stats: decrement loser losses, update status (eliminated → oneLoss or active depending on count)
-   - Reset match to `{ winnerId = null; loserId = null; result = #pending }`
-   - Mark the round containing this match as `completed = false`
-
-2. **Frontend hook**: Add `useUndoMatchResult` mutation in `useQueries.ts` that calls `actor.undoMatchResult(matchId)` and invalidates currentRound, players, tournament queries
-
-3. **MatchCard.tsx**: In the `isCompleted && isAdmin` branch, show a small "Undo" button. Accept optional `onUndo?: () => Promise<void>` and `isUndoLoading?: boolean` props.
-
-4. **AdminPage.tsx**: Wire `onUndo` in the MatchCard call inside TournamentPanel — call `undoMatchResult`, show toast, refresh data.
+1. Rewrite `main.mo` with updated Player type + new functions + wins tracking
+2. Regenerate backend.d.ts declarations to include new fields and methods
+3. Fix `eliminationCount` bug in `useQueries.ts` `useCreateTournament`
+4. Add new hooks to `useQueries.ts`
+5. Update `AdminPage.tsx`: Player Management tab with all 5 actions + Statistics tab with computed metrics (Buchholz = sum of opponents' wins, Opponent Score = avg opponent win rate)

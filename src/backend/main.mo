@@ -1,3 +1,4 @@
+import Migration "migration";
 import Map "mo:core/Map";
 import Iter "mo:core/Iter";
 import Text "mo:core/Text";
@@ -9,8 +10,7 @@ import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
 import Int "mo:core/Int";
 
-
-
+(with migration = Migration.run)
 actor {
   type TournamentStatus = { #registration; #active; #completed };
 
@@ -34,6 +34,9 @@ actor {
     losses : Nat;
     eliminated : Bool;
     status : PlayerStatus;
+    wins : Nat; // New field
+    disqualified : Bool; // New field
+    rating : Nat; // New field
   };
 
   type Round = {
@@ -257,6 +260,9 @@ actor {
       losses = 0;
       eliminated = false;
       status = #active;
+      wins = 0; // Initialize new field
+      disqualified = false; // Initialize new field
+      rating = 1200; // Initialize new field
     };
     players.add(id, player);
     player;
@@ -386,6 +392,10 @@ actor {
         } else { #oneLoss };
       } else { player.status };
 
+      let updatedWins = if (id == winnerId) {
+        player.wins + 1;
+      } else { player.wins };
+
       let updatedPlayer : Player = {
         id = player.id;
         tournamentId = player.tournamentId;
@@ -393,6 +403,9 @@ actor {
         losses = updatedLosses;
         eliminated = isEliminated;
         status = updatedStatus;
+        wins = updatedWins;
+        rating = player.rating; // Preserve current rating
+        disqualified = player.disqualified; // Preserve disqualified status
       };
       players.add(id, updatedPlayer);
     };
@@ -466,6 +479,9 @@ actor {
           losses = updatedLosses;
           eliminated = false;
           status = if (updatedLosses == 0) { #active } else { #oneLoss };
+          wins = loser.wins; // Preserve current wins
+          rating = loser.rating; // Preserve current rating
+          disqualified = loser.disqualified; // Preserve disqualified status
         };
         players.add(loser.id, updatedPlayer);
 
@@ -557,6 +573,9 @@ actor {
       losses = player.losses;
       eliminated = true;
       status = #eliminated;
+      rating = player.rating;
+      wins = player.wins;
+      disqualified = player.disqualified;
     };
     players.add(playerId, updatedPlayer);
     for ((matchId, match) in matches.entries()) {
@@ -604,6 +623,128 @@ actor {
     };
   };
 
+  public shared ({ caller }) func disqualifyPlayer(playerId : Text) : async () {
+    let player = getPlayerOrTrap(playerId);
+    let updatedPlayer : Player = {
+      id = player.id;
+      tournamentId = player.tournamentId;
+      name = player.name;
+      losses = player.losses;
+      eliminated = true;
+      status = #eliminated;
+      wins = player.wins;
+      rating = player.rating;
+      disqualified = true;
+    };
+    players.add(playerId, updatedPlayer);
+    for ((matchId, match) in matches.entries()) {
+      if (match.result == #pending and match.byePlayerId == null) {
+        if (match.player1Id == playerId or match.player2Id == playerId) {
+          let winnerId = if (match.player1Id == playerId) { match.player2Id } else { match.player1Id };
+          let updatedMatch : Match = {
+            id = match.id;
+            tournamentId = match.tournamentId;
+            roundNumber = match.roundNumber;
+            player1Id = match.player1Id;
+            player2Id = match.player2Id;
+            player1Name = match.player1Name;
+            player2Name = match.player2Name;
+            winnerId = ?winnerId;
+            loserId = ?playerId;
+            result = #completed;
+            byePlayerId = null;
+          };
+          matches.add(matchId, updatedMatch);
+          for ((roundId, round) in rounds.entries()) {
+            if (round.tournamentId == match.tournamentId and round.roundNumber == match.roundNumber) {
+              let updatedMatches = Array.tabulate(
+                round.matches.size(),
+                func(i) {
+                  if (i < round.matches.size() and round.matches[i].id == matchId) {
+                    updatedMatch;
+                  } else if (i < round.matches.size()) { round.matches[i] } else { match };
+                },
+              );
+              let isRoundCompleted = updatedMatches.foldLeft(
+                true,
+                func(acc, m) { acc and (m.result == #completed or m.byePlayerId != null) },
+              );
+              rounds.add(roundId, {
+                roundNumber = round.roundNumber;
+                tournamentId = round.tournamentId;
+                matches = updatedMatches;
+                completed = isRoundCompleted;
+              });
+            };
+          };
+        };
+      };
+    };
+  };
+
+  public shared ({ caller }) func changePlayerName(playerId : Text, newName : Text) : async Player {
+    let player = getPlayerOrTrap(playerId);
+
+    for ((id, p) in players.entries()) {
+      if (p.name == newName and p.tournamentId == player.tournamentId) {
+        Runtime.trap("Name already taken in this tournament");
+      };
+    };
+
+    let updatedPlayer = {
+      id = player.id;
+      tournamentId = player.tournamentId;
+      name = newName;
+      losses = player.losses;
+      eliminated = player.eliminated;
+      status = player.status;
+      wins = player.wins;
+      rating = player.rating;
+      disqualified = player.disqualified;
+    };
+
+    players.add(playerId, updatedPlayer);
+
+    for ((matchId, match) in matches.entries()) {
+      if (match.player1Id == playerId or match.player2Id == playerId) {
+        let updatedMatch = {
+          id = match.id;
+          tournamentId = match.tournamentId;
+          roundNumber = match.roundNumber;
+          player1Id = match.player1Id;
+          player2Id = match.player2Id;
+          player1Name = if (match.player1Id == playerId) { newName } else { match.player1Name };
+          player2Name = if (match.player2Id == playerId) { newName } else { match.player2Name };
+          winnerId = match.winnerId;
+          loserId = match.loserId;
+          result = match.result;
+          byePlayerId = match.byePlayerId;
+        };
+        matches.add(matchId, updatedMatch);
+      };
+    };
+
+    updatedPlayer;
+  };
+
+  public shared ({ caller }) func changePlayerRating(playerId : Text, rating : Nat) : async Player {
+    let player = getPlayerOrTrap(playerId);
+
+    let updatedPlayer = {
+      id = player.id;
+      tournamentId = player.tournamentId;
+      name = player.name;
+      losses = player.losses;
+      eliminated = player.eliminated;
+      status = player.status;
+      wins = player.wins;
+      rating = rating;
+      disqualified = player.disqualified;
+    };
+
+    players.add(playerId, updatedPlayer);
+    updatedPlayer;
+  };
 
   public shared ({ caller }) func reshuffleCurrentRound(tournamentId : Text) : async Round {
     let tournament = switch (tournaments.get(tournamentId)) {

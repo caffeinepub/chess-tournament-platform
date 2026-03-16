@@ -224,80 +224,6 @@
     animation: float 3s ease-in-out infinite;
   }
 
-  /* Hulk shake on button press */
-  @keyframes hulk-shake {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    10% { transform: translate(-3px, -2px) rotate(-1deg); }
-    20% { transform: translate(3px, 2px) rotate(1deg); }
-    30% { transform: translate(-4px, 1px) rotate(-0.5deg); }
-    40% { transform: translate(4px, -1px) rotate(0.5deg); }
-    50% { transform: translate(-2px, 3px) rotate(-1deg); }
-    60% { transform: translate(2px, -3px) rotate(1deg); }
-    70% { transform: translate(-3px, 2px) rotate(-0.5deg); }
-    80% { transform: translate(3px, -2px) rotate(0.5deg); }
-    90% { transform: translate(-1px, 1px) rotate(0deg); }
-  }
-  .hulk-shake {
-    animation: hulk-shake 0.6s ease-in-out;
-  }
-
-  /* Screen vibrate */
-  @keyframes screen-vibrate {
-    0%, 100% { transform: translate(0, 0); }
-    15% { transform: translate(-5px, 3px); }
-    30% { transform: translate(5px, -3px); }
-    45% { transform: translate(-3px, 5px); }
-    60% { transform: translate(3px, -5px); }
-    75% { transform: translate(-2px, 2px); }
-    90% { transform: translate(2px, -2px); }
-  }
-  .screen-vibrate {
-    animation: screen-vibrate 0.5s ease-in-out;
-  }
-
-  /* Hulk drop from above */
-  @keyframes hulk-drop {
-    0% { transform: translateY(-120%) scale(1.2); opacity: 0; }
-    60% { transform: translateY(10%) scale(0.95); opacity: 1; }
-    80% { transform: translateY(-5%) scale(1.02); }
-    100% { transform: translateY(0%) scale(1); opacity: 1; }
-  }
-  .hulk-drop {
-    animation: hulk-drop 0.7s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-  }
-
-  /* Stone crack appear */
-  @keyframes crack-appear {
-    0% { opacity: 0; transform: scale(0.3); }
-    60% { opacity: 1; transform: scale(1.1); }
-    100% { opacity: 1; transform: scale(1); }
-  }
-  .crack-appear {
-    animation: crack-appear 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-  }
-
-  /* Stone shatter */
-  @keyframes shatter-tl {
-    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-    100% { transform: translate(-80px, -60px) rotate(-45deg); opacity: 0; }
-  }
-  @keyframes shatter-tr {
-    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-    100% { transform: translate(80px, -60px) rotate(45deg); opacity: 0; }
-  }
-  @keyframes shatter-bl {
-    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-    100% { transform: translate(-80px, 80px) rotate(-30deg); opacity: 0; }
-  }
-  @keyframes shatter-br {
-    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-    100% { transform: translate(80px, 80px) rotate(30deg); opacity: 0; }
-  }
-  @keyframes shatter-center {
-    0% { transform: scale(1); opacity: 1; }
-    100% { transform: scale(2); opacity: 0; }
-  }
-
   /* Name reveal */
   @keyframes name-reveal {
     0% { opacity: 0; transform: scale(0.5) translateY(20px); filter: blur(10px); }
@@ -321,16 +247,6 @@
   @keyframes particle-rise {
     0% { transform: translateY(0) translateX(0) scale(1); opacity: 0.8; }
     100% { transform: translateY(-80px) translateX(var(--drift, 20px)) scale(0.2); opacity: 0; }
-  }
-
-  /* Impact flash */
-  @keyframes impact-flash {
-    0% { opacity: 0; }
-    20% { opacity: 0.8; }
-    100% { opacity: 0; }
-  }
-  .impact-flash {
-    animation: impact-flash 0.4s ease-out forwards;
   }
 
   @keyframes fadeInUp {

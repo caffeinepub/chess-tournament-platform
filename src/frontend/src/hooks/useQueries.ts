@@ -526,3 +526,113 @@ export function useDeletePlayer() {
     },
   });
 }
+
+export function useDisqualifyPlayer() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, { playerId: string; tournamentId: string }>({
+    mutationFn: async ({ playerId }) => {
+      if (!actor) throw new Error("Not connected");
+      try {
+        return await withCanisterRetry(() => actor.disqualifyPlayer(playerId));
+      } catch (e) {
+        throw normalizeError(e);
+      }
+    },
+    onSuccess: async (_data, { tournamentId }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.players(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.currentRound(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.rounds(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.tournament(tournamentId),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useChangePlayerName() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation<
+    Player,
+    Error,
+    { playerId: string; newName: string; tournamentId: string }
+  >({
+    mutationFn: async ({ playerId, newName }) => {
+      if (!actor) throw new Error("Not connected");
+      try {
+        return await withCanisterRetry(() =>
+          actor.changePlayerName(playerId, newName),
+        );
+      } catch (e) {
+        throw normalizeError(e);
+      }
+    },
+    onSuccess: async (_data, { tournamentId }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.players(tournamentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.currentRound(tournamentId),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useChangePlayerRating() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation<
+    Player,
+    Error,
+    { playerId: string; rating: bigint; tournamentId: string }
+  >({
+    mutationFn: async ({ playerId, rating }) => {
+      if (!actor) throw new Error("Not connected");
+      try {
+        return await withCanisterRetry(() =>
+          actor.changePlayerRating(playerId, rating),
+        );
+      } catch (e) {
+        throw normalizeError(e);
+      }
+    },
+    onSuccess: async (_data, { tournamentId }) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.players(tournamentId),
+      });
+    },
+  });
+}
+
+export function useAddPlayerAdmin() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation<Player, Error, { tournamentId: string; name: string }>({
+    mutationFn: async ({ tournamentId, name }) => {
+      if (!actor) throw new Error("Not connected");
+      try {
+        return await withCanisterRetry(() =>
+          actor.addPlayer(tournamentId, name),
+        );
+      } catch (e) {
+        throw normalizeError(e);
+      }
+    },
+    onSuccess: (_data, { tournamentId }) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.players(tournamentId),
+      });
+    },
+  });
+}

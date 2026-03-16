@@ -1,14 +1,13 @@
 import Map "mo:core/Map";
 import Text "mo:core/Text";
-import Int "mo:core/Int";
-import Nat "mo:core/Nat";
 
 module {
   type TournamentStatus = { #registration; #active; #completed };
   type PlayerStatus = { #active; #oneLoss; #eliminated };
   type MatchResult = { #pending; #completed };
 
-  type Tournament = {
+  // Old types
+  type OldTournament = {
     id : Text;
     name : Text;
     status : TournamentStatus;
@@ -17,7 +16,7 @@ module {
     eliminationCount : Nat;
   };
 
-  type Player = {
+  type OldPlayer = {
     id : Text;
     tournamentId : Text;
     name : Text;
@@ -26,14 +25,7 @@ module {
     status : PlayerStatus;
   };
 
-  type Round = {
-    roundNumber : Nat;
-    tournamentId : Text;
-    matches : [Match];
-    completed : Bool;
-  };
-
-  type Match = {
+  type OldMatch = {
     id : Text;
     tournamentId : Text;
     roundNumber : Nat;
@@ -47,21 +39,61 @@ module {
     byePlayerId : ?Text;
   };
 
-  type OldTuple = {
-    tournaments : Map.Map<Text, Tournament>;
-    players : Map.Map<Text, Player>;
-    rounds : Map.Map<Text, Round>;
-    matches : Map.Map<Text, Match>;
+  type OldRound = {
+    roundNumber : Nat;
+    tournamentId : Text;
+    matches : [OldMatch];
+    completed : Bool;
   };
 
-  type NewTuple = {
-    tournaments : Map.Map<Text, Tournament>;
-    players : Map.Map<Text, Player>;
-    rounds : Map.Map<Text, Round>;
-    matches : Map.Map<Text, Match>;
+  type OldActor = {
+    tournaments : Map.Map<Text, OldTournament>;
+    players : Map.Map<Text, OldPlayer>;
+    rounds : Map.Map<Text, OldRound>;
+    matches : Map.Map<Text, OldMatch>;
   };
 
-  public func run(old : OldTuple) : NewTuple {
-    old;
+  // New types
+  type NewTournament = OldTournament;
+
+  type NewPlayer = {
+    id : Text;
+    tournamentId : Text;
+    name : Text;
+    losses : Nat;
+    eliminated : Bool;
+    status : PlayerStatus;
+    wins : Nat;
+    disqualified : Bool;
+    rating : Nat;
+  };
+
+  type NewMatch = OldMatch;
+
+  type NewRound = OldRound;
+
+  type NewActor = {
+    tournaments : Map.Map<Text, NewTournament>;
+    players : Map.Map<Text, NewPlayer>;
+    rounds : Map.Map<Text, NewRound>;
+    matches : Map.Map<Text, NewMatch>;
+  };
+
+  public func run(old : OldActor) : NewActor {
+    let newPlayers = old.players.map<Text, OldPlayer, NewPlayer>(
+      func(_, oldPlayer) {
+        {
+          oldPlayer with
+          wins = 0;
+          disqualified = false;
+          rating = 1200;
+        };
+      }
+    );
+
+    {
+      old with
+      players = newPlayers;
+    };
   };
 };

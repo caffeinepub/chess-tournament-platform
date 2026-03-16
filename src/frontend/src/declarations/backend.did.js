@@ -17,8 +17,11 @@ export const Player = IDL.Record({
   'id' : IDL.Text,
   'status' : PlayerStatus,
   'name' : IDL.Text,
+  'wins' : IDL.Nat,
   'losses' : IDL.Nat,
   'eliminated' : IDL.Bool,
+  'rating' : IDL.Nat,
+  'disqualified' : IDL.Bool,
   'tournamentId' : IDL.Text,
 });
 export const TournamentStatus = IDL.Variant({
@@ -60,10 +63,14 @@ export const Round = IDL.Record({
 
 export const idlService = IDL.Service({
   'addPlayer' : IDL.Func([IDL.Text, IDL.Text], [Player], []),
+  'changePlayerName' : IDL.Func([IDL.Text, IDL.Text], [Player], []),
+  'changePlayerRating' : IDL.Func([IDL.Text, IDL.Nat], [Player], []),
   'completeTournament' : IDL.Func([IDL.Text, IDL.Text], [Tournament], []),
   'createNextRound' : IDL.Func([IDL.Text], [Round], []),
   'createTournament' : IDL.Func([IDL.Text, IDL.Opt(IDL.Nat)], [Tournament], []),
+  'deletePlayer' : IDL.Func([IDL.Text], [], []),
   'deleteTournament' : IDL.Func([IDL.Text], [], []),
+  'disqualifyPlayer' : IDL.Func([IDL.Text], [], []),
   'getAllTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
   'getCurrentRound' : IDL.Func([IDL.Text], [IDL.Opt(Round)], ['query']),
   'getPlayersByTournament' : IDL.Func([IDL.Text], [IDL.Vec(Player)], ['query']),
@@ -92,8 +99,11 @@ export const idlFactory = ({ IDL }) => {
     'id' : IDL.Text,
     'status' : PlayerStatus,
     'name' : IDL.Text,
+    'wins' : IDL.Nat,
     'losses' : IDL.Nat,
     'eliminated' : IDL.Bool,
+    'rating' : IDL.Nat,
+    'disqualified' : IDL.Bool,
     'tournamentId' : IDL.Text,
   });
   const TournamentStatus = IDL.Variant({
@@ -135,6 +145,8 @@ export const idlFactory = ({ IDL }) => {
   
   return IDL.Service({
     'addPlayer' : IDL.Func([IDL.Text, IDL.Text], [Player], []),
+    'changePlayerName' : IDL.Func([IDL.Text, IDL.Text], [Player], []),
+    'changePlayerRating' : IDL.Func([IDL.Text, IDL.Nat], [Player], []),
     'completeTournament' : IDL.Func([IDL.Text, IDL.Text], [Tournament], []),
     'createNextRound' : IDL.Func([IDL.Text], [Round], []),
     'createTournament' : IDL.Func(
@@ -142,7 +154,9 @@ export const idlFactory = ({ IDL }) => {
         [Tournament],
         [],
       ),
+    'deletePlayer' : IDL.Func([IDL.Text], [], []),
     'deleteTournament' : IDL.Func([IDL.Text], [], []),
+    'disqualifyPlayer' : IDL.Func([IDL.Text], [], []),
     'getAllTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
     'getCurrentRound' : IDL.Func([IDL.Text], [IDL.Opt(Round)], ['query']),
     'getPlayersByTournament' : IDL.Func(

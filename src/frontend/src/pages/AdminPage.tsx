@@ -11,11 +11,14 @@ import {
   ChevronDown,
   ChevronUp,
   Dices,
+  Edit2,
   ExternalLink,
   Loader2,
   Plus,
   RefreshCw,
+  Star,
   Trash2,
+  UserX,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -32,13 +35,18 @@ import PlayerBadge, { getPlayerStatusLabel } from "../components/PlayerBadge";
 import { createActorWithConfig } from "../config";
 import {
   queryKeys,
+  useAddPlayerAdmin,
+  useChangePlayerName,
+  useChangePlayerRating,
   useCreateNextRound,
   useCreateTournament,
   useDeletePlayer,
   useDeleteTournament,
+  useDisqualifyPlayer,
   useGetAllTournaments,
   useGetCurrentRound,
   useGetPlayers,
+  useGetRounds,
   useGetTournament,
   useRecordMatchResult,
   useReshuffleCurrentRound,
@@ -315,6 +323,654 @@ function StatusBadge({ status }: { status: TournamentStatus }) {
   );
 }
 
+// ─── Player Management Panel ─────────────────────────────────────────────────
+
+function PlayerManagementPanel({
+  tournamentId,
+  players,
+  tournament,
+  onCanisterOffline,
+}: {
+  tournamentId: string;
+  players: Player[];
+  tournament: Tournament;
+  onCanisterOffline: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<"management" | "statistics">(
+    "management",
+  );
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
+  const [editNameValue, setEditNameValue] = useState("");
+  const [editRatingPlayerId, setEditRatingPlayerId] = useState<string | null>(
+    null,
+  );
+  const [editRatingValue, setEditRatingValue] = useState("");
+  const [addPlayerName, setAddPlayerName] = useState("");
+
+  const { data: rounds = [] } = useGetRounds(tournamentId);
+  const deletePlayerMutation = useDeletePlayer();
+  const disqualifyMutation = useDisqualifyPlayer();
+  const changeNameMutation = useChangePlayerName();
+  const changeRatingMutation = useChangePlayerRating();
+  const addPlayerMutation = useAddPlayerAdmin();
+
+  const sortedPlayers = [...players].sort((a, b) => {
+    if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
+    return Number(a.losses) - Number(b.losses);
+  });
+
+  // Compute statistics
+  const statsPlayers = [...players]
+    .map((player) => {
+      const wins = Number(player.wins);
+      const losses = Number(player.losses);
+      const total = wins + losses;
+      const winRate = total > 0 ? (wins / total) * 100 : 0;
+
+      // Find all opponents this player has faced
+      const opponentIds: string[] = [];
+      for (const round of rounds) {
+        for (const match of round.matches) {
+          if (match.byePlayerId) continue;
+          if (match.player1Id === player.id && match.player2Id) {
+            opponentIds.push(match.player2Id);
+          } else if (match.player2Id === player.id && match.player1Id) {
+            opponentIds.push(match.player1Id);
+          }
+        }
+      }
+
+      const playersMap = new Map(players.map((p) => [p.id, p]));
+      let buchholzScore = 0;
+      let opponentWinRateSum = 0;
+      let opponentCount = 0;
+      for (const oppId of opponentIds) {
+        const opp = playersMap.get(oppId);
+        if (!opp) continue;
+        buchholzScore += Number(opp.wins);
+        const oppTotal = Number(opp.wins) + Number(opp.losses);
+        opponentWinRateSum += oppTotal > 0 ? Number(opp.wins) / oppTotal : 0;
+        opponentCount++;
+      }
+      const opponentScore =
+        opponentCount > 0 ? (opponentWinRateSum / opponentCount) * 100 : 0;
+
+      return { player, wins, losses, winRate, buchholzScore, opponentScore };
+    })
+    .sort((a, b) => b.winRate - a.winRate);
+
+  const isRegistration = tournament.status === TournamentStatus.registration;
+
+  const handleAddPlayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = addPlayerName.trim();
+    if (!name) return;
+    try {
+      await addPlayerMutation.mutateAsync({ tournamentId, name });
+      setAddPlayerName("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("IC0508") || msg.includes("stopped"))
+        onCanisterOffline();
+      else toast.error(msg);
+    }
+  };
+
+  const handleSaveName = async (playerId: string) => {
+    const newName = editNameValue.trim();
+    if (!newName) return;
+    try {
+      await changeNameMutation.mutateAsync({ playerId, newName, tournamentId });
+      setEditingPlayerId(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("IC0508") || msg.includes("stopped"))
+        onCanisterOffline();
+      else toast.error(msg);
+    }
+  };
+
+  const handleSaveRating = async (playerId: string) => {
+    const rating = Number(editRatingValue);
+    if (Number.isNaN(rating) || rating < 0) return;
+    try {
+      await changeRatingMutation.mutateAsync({
+        playerId,
+        rating: BigInt(rating),
+        tournamentId,
+      });
+      setEditRatingPlayerId(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("IC0508") || msg.includes("stopped"))
+        onCanisterOffline();
+      else toast.error(msg);
+    }
+  };
+
+  const handleDisqualify = async (player: Player) => {
+    if (
+      !confirm(
+        `Disqualify "${player.name}"? They will be removed from the tournament.`,
+      )
+    )
+      return;
+    try {
+      await disqualifyMutation.mutateAsync({
+        playerId: player.id,
+        tournamentId,
+      });
+      toast.success(`${player.name} disqualified`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("IC0508") || msg.includes("stopped"))
+        onCanisterOffline();
+      else toast.error(msg);
+    }
+  };
+
+  const handleDelete = async (player: Player) => {
+    if (
+      !confirm(
+        `Remove "${player.name}" from the tournament? Their pending matches will be forfeited.`,
+      )
+    )
+      return;
+    try {
+      await deletePlayerMutation.mutateAsync({
+        playerId: player.id,
+        tournamentId,
+      });
+      toast.success(`${player.name} removed`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("IC0508") || msg.includes("stopped"))
+        onCanisterOffline();
+      else toast.error(msg);
+    }
+  };
+
+  const thStyle = { color: "oklch(0.42 0.10 145)" };
+  const borderColor = "oklch(0.22 0.06 145 / 0.6)";
+
+  return (
+    <div>
+      {/* Tab bar */}
+      <div
+        className="flex gap-0 mb-4 rounded-lg overflow-hidden"
+        style={{
+          border: "1px solid oklch(0.22 0.06 145 / 0.5)",
+          background: "oklch(0.09 0.02 145 / 0.5)",
+        }}
+      >
+        <button
+          type="button"
+          data-ocid="admin.player_management.tab"
+          onClick={() => setActiveTab("management")}
+          className="flex-1 py-2.5 text-xs font-mono uppercase tracking-wider transition-all"
+          style={
+            activeTab === "management"
+              ? {
+                  background: "oklch(0.15 0.06 145 / 0.8)",
+                  color: "oklch(0.72 0.28 145)",
+                  borderBottom: "2px solid oklch(0.72 0.28 145)",
+                }
+              : { color: "oklch(0.42 0.10 145)" }
+          }
+        >
+          ♟ Management
+        </button>
+        <button
+          type="button"
+          data-ocid="admin.player_stats.tab"
+          onClick={() => setActiveTab("statistics")}
+          className="flex-1 py-2.5 text-xs font-mono uppercase tracking-wider transition-all"
+          style={
+            activeTab === "statistics"
+              ? {
+                  background: "oklch(0.15 0.06 145 / 0.8)",
+                  color: "oklch(0.72 0.28 145)",
+                  borderBottom: "2px solid oklch(0.72 0.28 145)",
+                }
+              : { color: "oklch(0.42 0.10 145)" }
+          }
+        >
+          ♜ Statistics
+        </button>
+      </div>
+
+      {activeTab === "management" && (
+        <div className="space-y-4">
+          {/* Add Player */}
+          {isRegistration ? (
+            <form onSubmit={handleAddPlayer} className="flex gap-2">
+              <Input
+                data-ocid="admin.add_player.input"
+                value={addPlayerName}
+                onChange={(e) => setAddPlayerName(e.target.value)}
+                placeholder="Add player name..."
+                className="flex-1 font-mono text-sm"
+                style={{
+                  background: "oklch(0.11 0.02 145 / 0.8)",
+                  borderColor: "oklch(0.25 0.08 145 / 0.6)",
+                  color: "oklch(0.90 0.10 145)",
+                }}
+                disabled={addPlayerMutation.isPending}
+              />
+              <Button
+                type="submit"
+                data-ocid="admin.add_player.submit_button"
+                disabled={!addPlayerName.trim() || addPlayerMutation.isPending}
+                className="font-mono font-bold shrink-0"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.45 0.22 145), oklch(0.60 0.28 145))",
+                  border: "1px solid oklch(0.68 0.25 145 / 0.6)",
+                  color: "oklch(0.05 0.01 145)",
+                }}
+              >
+                {addPlayerMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+              </Button>
+            </form>
+          ) : (
+            <p
+              className="text-xs font-mono px-3 py-2 rounded"
+              style={{
+                color: "oklch(0.45 0.10 145)",
+                background: "oklch(0.11 0.02 145 / 0.4)",
+                border: "1px solid oklch(0.22 0.06 145 / 0.4)",
+              }}
+            >
+              Registration closed — players can no longer be added.
+            </p>
+          )}
+
+          {/* Player table */}
+          <div
+            className="rounded-lg overflow-hidden"
+            style={{ border: `1px solid ${borderColor}` }}
+          >
+            <table className="w-full text-sm">
+              <thead>
+                <tr
+                  className="border-b"
+                  style={{
+                    borderColor,
+                    background: "oklch(0.11 0.03 145 / 0.5)",
+                  }}
+                >
+                  <th
+                    className="text-left p-3 font-mono text-xs uppercase tracking-wider"
+                    style={thStyle}
+                  >
+                    Player
+                  </th>
+                  <th
+                    className="text-center p-3 font-mono text-xs uppercase tracking-wider"
+                    style={thStyle}
+                  >
+                    Rating
+                  </th>
+                  <th
+                    className="text-center p-3 font-mono text-xs uppercase tracking-wider"
+                    style={thStyle}
+                  >
+                    L
+                  </th>
+                  <th
+                    className="text-center p-3 font-mono text-xs uppercase tracking-wider"
+                    style={thStyle}
+                  >
+                    Status
+                  </th>
+                  <th
+                    className="text-right p-3 font-mono text-xs uppercase tracking-wider"
+                    style={thStyle}
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedPlayers.map((player, idx) => (
+                  <tr
+                    key={player.id}
+                    className="border-b last:border-0 transition-colors"
+                    style={{
+                      borderColor: "oklch(0.18 0.05 145 / 0.4)",
+                      opacity: player.eliminated ? 0.5 : 1,
+                    }}
+                  >
+                    {/* Name */}
+                    <td className="p-3">
+                      {editingPlayerId === player.id ? (
+                        <div className="flex gap-1">
+                          <input
+                            value={editNameValue}
+                            onChange={(e) => setEditNameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSaveName(player.id);
+                              if (e.key === "Escape") setEditingPlayerId(null);
+                            }}
+                            className="flex-1 text-sm px-2 py-1 rounded font-mono outline-none"
+                            style={{
+                              background: "oklch(0.13 0.04 145 / 0.8)",
+                              border: "1px solid oklch(0.45 0.20 145 / 0.6)",
+                              color: "oklch(0.90 0.10 145)",
+                              minWidth: 0,
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveName(player.id)}
+                            className="text-xs px-2 py-1 rounded font-mono"
+                            style={{
+                              background: "oklch(0.45 0.22 145)",
+                              color: "oklch(0.05 0.01 145)",
+                            }}
+                          >
+                            ✓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingPlayerId(null)}
+                            className="text-xs px-2 py-1 rounded font-mono text-muted-foreground"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <PlayerBadge player={player} showLosses={false} />
+                      )}
+                    </td>
+                    {/* Rating */}
+                    <td className="p-3 text-center font-mono text-muted-foreground">
+                      {editRatingPlayerId === player.id ? (
+                        <div className="flex gap-1 justify-center">
+                          <input
+                            type="number"
+                            value={editRatingValue}
+                            onChange={(e) => setEditRatingValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter")
+                                handleSaveRating(player.id);
+                              if (e.key === "Escape")
+                                setEditRatingPlayerId(null);
+                            }}
+                            className="w-20 text-sm px-2 py-1 rounded font-mono text-center outline-none"
+                            style={{
+                              background: "oklch(0.13 0.04 145 / 0.8)",
+                              border: "1px solid oklch(0.45 0.20 145 / 0.6)",
+                              color: "oklch(0.90 0.10 145)",
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveRating(player.id)}
+                            className="text-xs px-2 py-1 rounded font-mono"
+                            style={{
+                              background: "oklch(0.45 0.22 145)",
+                              color: "oklch(0.05 0.01 145)",
+                            }}
+                          >
+                            ✓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditRatingPlayerId(null)}
+                            className="text-xs px-2 py-1 rounded font-mono text-muted-foreground"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <span>{Number(player.rating)}</span>
+                      )}
+                    </td>
+                    {/* Losses */}
+                    <td className="p-3 text-center font-mono text-muted-foreground">
+                      {Number(player.losses)}
+                    </td>
+                    {/* Status */}
+                    <td className="p-3 text-center">
+                      <span
+                        className={cn(
+                          "text-xs font-mono px-1.5 py-0.5 rounded uppercase",
+                          player.disqualified
+                            ? "bg-red-500/20 text-red-400"
+                            : player.eliminated
+                              ? "bg-player-eliminated/20 text-player-eliminated"
+                              : player.status === PlayerStatus.oneLoss
+                                ? "bg-player-one-loss/20 text-player-one-loss"
+                                : "bg-player-active/20 text-player-active",
+                        )}
+                      >
+                        {player.disqualified
+                          ? "DQ"
+                          : getPlayerStatusLabel(player)}
+                      </span>
+                    </td>
+                    {/* Actions */}
+                    <td className="p-3">
+                      <div className="flex items-center justify-end gap-1">
+                        {!player.eliminated && (
+                          <>
+                            <button
+                              type="button"
+                              data-ocid={`admin.player.edit_button.${idx + 1}`}
+                              title="Edit name"
+                              onClick={() => {
+                                setEditingPlayerId(player.id);
+                                setEditNameValue(player.name);
+                                setEditRatingPlayerId(null);
+                              }}
+                              className="p-1.5 rounded transition-colors text-muted-foreground hover:text-[oklch(0.72_0.28_145)] hover:bg-[oklch(0.15_0.06_145/0.5)]"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Edit rating"
+                              onClick={() => {
+                                setEditRatingPlayerId(player.id);
+                                setEditRatingValue(
+                                  String(Number(player.rating)),
+                                );
+                                setEditingPlayerId(null);
+                              }}
+                              className="p-1.5 rounded transition-colors text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10"
+                            >
+                              <Star className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Disqualify player"
+                              onClick={() => handleDisqualify(player)}
+                              disabled={disqualifyMutation.isPending}
+                              className="p-1.5 rounded transition-colors text-muted-foreground hover:text-orange-400 hover:bg-orange-400/10"
+                            >
+                              <UserX className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              data-ocid={`admin.player.delete_button.${idx + 1}`}
+                              title="Remove player"
+                              onClick={() => handleDelete(player)}
+                              disabled={deletePlayerMutation.isPending}
+                              className="p-1.5 rounded transition-colors text-muted-foreground hover:text-red-400 hover:bg-red-400/10"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p
+            className="text-xs text-right font-mono"
+            style={{ color: "oklch(0.40 0.08 145)" }}
+          >
+            {players.filter((p) => !p.eliminated).length} active ·{" "}
+            {players.filter((p) => p.eliminated).length} eliminated
+          </p>
+        </div>
+      )}
+
+      {activeTab === "statistics" && (
+        <div>
+          <div
+            className="rounded-lg overflow-x-auto"
+            style={{ border: `1px solid ${borderColor}` }}
+          >
+            <table
+              className="w-full text-sm"
+              data-ocid="admin.player_stats.table"
+            >
+              <thead>
+                <tr
+                  className="border-b"
+                  style={{
+                    borderColor,
+                    background: "oklch(0.11 0.03 145 / 0.5)",
+                  }}
+                >
+                  <th
+                    className="text-left p-3 font-mono text-xs uppercase tracking-wider"
+                    style={thStyle}
+                  >
+                    Player
+                  </th>
+                  <th
+                    className="text-center p-3 font-mono text-xs uppercase tracking-wider"
+                    style={thStyle}
+                  >
+                    W
+                  </th>
+                  <th
+                    className="text-center p-3 font-mono text-xs uppercase tracking-wider"
+                    style={thStyle}
+                  >
+                    L
+                  </th>
+                  <th
+                    className="text-center p-3 font-mono text-xs uppercase tracking-wider"
+                    style={thStyle}
+                  >
+                    Win%
+                  </th>
+                  <th
+                    className="text-center p-3 font-mono text-xs uppercase tracking-wider"
+                    style={thStyle}
+                  >
+                    Buchholz
+                  </th>
+                  <th
+                    className="text-center p-3 font-mono text-xs uppercase tracking-wider"
+                    style={thStyle}
+                  >
+                    Opp%
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {statsPlayers.map(
+                  ({
+                    player,
+                    wins,
+                    losses,
+                    winRate,
+                    buchholzScore,
+                    opponentScore,
+                  }) => (
+                    <tr
+                      key={player.id}
+                      className="border-b last:border-0 transition-colors"
+                      style={{
+                        borderColor: "oklch(0.18 0.05 145 / 0.4)",
+                        opacity: player.eliminated ? 0.45 : 1,
+                      }}
+                    >
+                      <td
+                        className="p-3 font-medium"
+                        style={{
+                          color: player.eliminated
+                            ? "oklch(0.50 0.06 145)"
+                            : "oklch(0.88 0.12 145)",
+                        }}
+                      >
+                        {player.name}
+                        {player.disqualified && (
+                          <span className="ml-1.5 text-xs text-red-400 font-mono">
+                            (DQ)
+                          </span>
+                        )}
+                      </td>
+                      <td
+                        className="p-3 text-center font-mono"
+                        style={{ color: "oklch(0.72 0.22 145)" }}
+                      >
+                        {wins}
+                      </td>
+                      <td className="p-3 text-center font-mono text-muted-foreground">
+                        {losses}
+                      </td>
+                      <td
+                        className="p-3 text-center font-mono"
+                        style={{
+                          color:
+                            winRate >= 70
+                              ? "oklch(0.78 0.25 145)"
+                              : winRate >= 50
+                                ? "oklch(0.68 0.18 145)"
+                                : "oklch(0.55 0.10 145)",
+                        }}
+                      >
+                        {winRate.toFixed(0)}%
+                      </td>
+                      <td className="p-3 text-center font-mono text-muted-foreground">
+                        {buchholzScore}
+                      </td>
+                      <td className="p-3 text-center font-mono text-muted-foreground">
+                        {opponentScore.toFixed(0)}%
+                      </td>
+                    </tr>
+                  ),
+                )}
+                {statsPlayers.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="p-6 text-center text-muted-foreground text-sm font-mono"
+                      data-ocid="admin.player_stats.empty_state"
+                    >
+                      No player data yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <p
+            className="text-xs mt-2 font-mono text-right"
+            style={{ color: "oklch(0.38 0.08 145)" }}
+          >
+            Sorted by win rate · Buchholz = sum of opponents' wins · Opp% = avg
+            opponent win rate
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Tournament Management Panel ──────────────────────────────────────────────
 
 function TournamentPanel({
@@ -340,10 +996,7 @@ function TournamentPanel({
   const undoMutation = useUndoMatchResult();
   const createNextRoundMutation = useCreateNextRound();
   const reshuffleMutation = useReshuffleCurrentRound();
-  const deletePlayerMutation = useDeletePlayer();
-
   const playersMap = new Map(players.map((p) => [p.id, p]));
-  const activePlayers = players.filter((p) => !p.eliminated);
   const origin = window.location.origin;
 
   const pollAfterResult = useCallback(
@@ -850,152 +1503,13 @@ function TournamentPanel({
         </div>
       )}
 
-      {/* Player standings */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <h4
-            className="text-sm font-mono uppercase tracking-wider"
-            style={{ color: "oklch(0.45 0.12 145)" }}
-          >
-            Standings
-          </h4>
-          <span
-            className="text-[10px] font-mono px-1.5 py-0.5 rounded whitespace-nowrap"
-            style={{
-              color: "oklch(0.62 0.18 145)",
-              background: "oklch(0.12 0.05 145 / 0.4)",
-              border: "1px solid oklch(0.30 0.12 145 / 0.35)",
-            }}
-          >
-            {Number(tournament.eliminationCount)} loss
-            {Number(tournament.eliminationCount) !== 1 ? "es" : ""} = out
-          </span>
-        </div>
-        <div
-          className="rounded-lg overflow-hidden"
-          style={{ border: "1px solid oklch(0.22 0.06 145 / 0.6)" }}
-        >
-          <table className="w-full text-sm">
-            <thead>
-              <tr
-                className="border-b"
-                style={{
-                  borderColor: "oklch(0.22 0.06 145 / 0.6)",
-                  background: "oklch(0.11 0.03 145 / 0.5)",
-                }}
-              >
-                <th
-                  className="text-left p-3 font-mono text-xs uppercase tracking-wider"
-                  style={{ color: "oklch(0.42 0.10 145)" }}
-                >
-                  Player
-                </th>
-                <th
-                  className="text-center p-3 font-mono text-xs uppercase tracking-wider"
-                  style={{ color: "oklch(0.42 0.10 145)" }}
-                >
-                  Losses
-                </th>
-                <th
-                  className="text-right p-3 font-mono text-xs uppercase tracking-wider"
-                  style={{ color: "oklch(0.42 0.10 145)" }}
-                >
-                  Status
-                </th>
-                <th
-                  className="text-right p-3 font-mono text-xs uppercase tracking-wider"
-                  style={{ color: "oklch(0.42 0.10 145)" }}
-                >
-                  Remove
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...players]
-                .sort((a, b) => {
-                  if (a.eliminated !== b.eliminated)
-                    return a.eliminated ? 1 : -1;
-                  return Number(a.losses) - Number(b.losses);
-                })
-                .map((player) => (
-                  <tr
-                    key={player.id}
-                    className="border-b last:border-0 hover:bg-card/50 transition-colors"
-                    style={{ borderColor: "oklch(0.18 0.05 145 / 0.4)" }}
-                  >
-                    <td className="p-3">
-                      <PlayerBadge player={player} showLosses={false} />
-                    </td>
-                    <td className="p-3 text-center font-mono text-muted-foreground">
-                      {Number(player.losses)}
-                    </td>
-                    <td className="p-3 text-right">
-                      <span
-                        className={cn(
-                          "text-xs font-mono px-1.5 py-0.5 rounded uppercase",
-                          player.eliminated
-                            ? "bg-player-eliminated/20 text-player-eliminated"
-                            : player.status === PlayerStatus.oneLoss
-                              ? "bg-player-one-loss/20 text-player-one-loss"
-                              : "bg-player-active/20 text-player-active",
-                        )}
-                      >
-                        {getPlayerStatusLabel(player)}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right">
-                      {!player.eliminated && (
-                        <button
-                          type="button"
-                          data-ocid="admin.standings.delete_button"
-                          title="Remove player from tournament"
-                          onClick={async () => {
-                            if (
-                              !confirm(
-                                `Remove "${player.name}" from the tournament? Their pending matches will be forfeited.`,
-                              )
-                            )
-                              return;
-                            try {
-                              await deletePlayerMutation.mutateAsync({
-                                playerId: player.id,
-                                tournamentId,
-                              });
-                              toast.success(`${player.name} removed`);
-                            } catch (e) {
-                              const msg =
-                                e instanceof Error ? e.message : String(e);
-                              if (
-                                msg.includes("IC0508") ||
-                                msg.includes("stopped")
-                              ) {
-                                onCanisterOffline();
-                              } else {
-                                toast.error(msg);
-                              }
-                            }
-                          }}
-                          disabled={deletePlayerMutation.isPending}
-                          className="p-1 rounded transition-colors text-muted-foreground hover:text-red-400 hover:bg-red-400/10"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-        <p
-          className="text-xs mt-2 text-right font-mono"
-          style={{ color: "oklch(0.40 0.08 145)" }}
-        >
-          {activePlayers.length} active ·{" "}
-          {players.length - activePlayers.length} eliminated
-        </p>
-      </div>
-
+      {/* Player Management Panel */}
+      <PlayerManagementPanel
+        tournamentId={tournamentId}
+        players={players}
+        tournament={tournament}
+        onCanisterOffline={onCanisterOffline}
+      />
       <CopyLink url={`${origin}/view/${tournament.id}`} label="Viewer Link" />
     </div>
   );
